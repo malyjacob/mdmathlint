@@ -641,7 +641,7 @@ mdml-lsp
 
 ### 浏览器 Playground
 
-在浏览器中打开 [`docs/playground.html`](docs/playground.html)——纯静态页面，零依赖。提供了定界符位置检查（MDM003 / MDM005 的浏览器端近似），适合快速检查。完整的 KaTeX 验证和 parser 对比仍需 CLI。
+在浏览器中打开 [`docs/playground.html`](docs/playground.html) - 这是一个零依赖的静态页面，能够预览安全的空格/display 修复，并在浏览器侧近似检查 `MDM003`、`MDM005`、`MDM011`、`MDM013` 及 `MDM017`-`MDM021`，包括 P4 新增的渲染器风险、文档内引用与复杂度提示。完整 KaTeX 验证、parser 对比、配置加载以及跨文件 `\label` / `\ref` 解析仍需使用 CLI。
 
 ---
 

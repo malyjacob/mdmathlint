@@ -3,35 +3,325 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>mdmathlint playground</title>
+  <title>mdmathlint browser preflight</title>
   <style>
-    :root { color-scheme: light dark; font: 16px system-ui, sans-serif; }
-    body { margin: 2rem auto; max-width: 960px; padding: 0 1rem; }
-    textarea { box-sizing: border-box; font: 15px ui-monospace, monospace; height: 16rem; padding: 1rem; width: 100%; }
-    button { cursor: pointer; font: inherit; margin: 1rem 0; padding: .6rem 1rem; }
-    pre { background: color-mix(in srgb, CanvasText 8%, Canvas); min-height: 7rem; padding: 1rem; white-space: pre-wrap; }
+    :root {
+      color-scheme: light dark;
+      font: 16px system-ui, sans-serif;
+      --accent: #406bd8;
+      --border: color-mix(in srgb, CanvasText 18%, Canvas);
+      --panel: color-mix(in srgb, CanvasText 5%, Canvas);
+      --error: #da4a4a;
+      --warning: #be7600;
+      --info: #5070bc;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 2rem auto; max-width: 1120px; padding: 0 1.25rem 3rem; }
+    h1 { margin-bottom: .4rem; }
+    .intro { color: color-mix(in srgb, CanvasText 72%, Canvas); margin: 0 0 1.5rem; max-width: 72ch; }
+    .workspace { display: grid; gap: 1rem; grid-template-columns: minmax(340px, 1.05fr) minmax(300px, .95fr); }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: .7rem; padding: 1rem; }
+    label { display: block; font-size: .9rem; font-weight: 600; margin-bottom: .4rem; }
+    textarea, input, select {
+      background: Canvas;
+      border: 1px solid var(--border);
+      border-radius: .35rem;
+      color: CanvasText;
+      font: inherit;
+    }
+    textarea {
+      font: 14px/1.5 ui-monospace, "Cascadia Code", monospace;
+      height: 29rem;
+      padding: .8rem;
+      resize: vertical;
+      width: 100%;
+    }
+    .settings { display: grid; gap: .75rem; grid-template-columns: 11rem 1fr; margin: 1rem 0; }
+    select, input { height: 2.3rem; padding: .35rem .55rem; width: 100%; }
+    .buttons { display: flex; flex-wrap: wrap; gap: .6rem; }
+    button {
+      background: var(--accent);
+      border: 1px solid transparent;
+      border-radius: .4rem;
+      color: white;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+      padding: .58rem .9rem;
+    }
+    button.secondary { background: transparent; border-color: var(--border); color: CanvasText; }
+    .summary { display: flex; gap: .55rem; margin-bottom: 1rem; }
+    .badge { background: Canvas; border: 1px solid var(--border); border-radius: 999px; padding: .3rem .65rem; }
+    .badge.error strong { color: var(--error); }
+    .badge.warning strong { color: var(--warning); }
+    .badge.info strong { color: var(--info); }
+    #findings { display: grid; gap: .7rem; list-style: none; margin: 0; padding: 0; }
+    .finding { background: Canvas; border-left: 4px solid var(--info); border-radius: .35rem; padding: .7rem .8rem; }
+    .finding.error { border-left-color: var(--error); }
+    .finding.warning { border-left-color: var(--warning); }
+    .headline { display: flex; flex-wrap: wrap; gap: .5rem; font-weight: 600; margin-bottom: .25rem; }
+    .code { font: 13px ui-monospace, "Cascadia Code", monospace; }
+    .severity { text-transform: uppercase; }
+    .finding.error .severity { color: var(--error); }
+    .finding.warning .severity { color: var(--warning); }
+    .finding.info .severity { color: var(--info); }
+    .location, .help, .empty, .coverage { color: color-mix(in srgb, CanvasText 68%, Canvas); font-size: .9rem; }
+    .snippet { display: block; font: 13px ui-monospace, "Cascadia Code", monospace; margin: .35rem 0; overflow-wrap: anywhere; }
+    .coverage { border-top: 1px solid var(--border); margin-top: 1.2rem; padding-top: 1rem; }
+    .coverage code { font: 13px ui-monospace, monospace; }
+    @media (max-width: 820px) {
+      .workspace { grid-template-columns: 1fr; }
+      textarea { height: 21rem; }
+      .settings { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-  <h1>mdmathlint playground</h1>
-  <p>This lightweight preview catches delimiter placement issues in the browser. The npm CLI performs full parser and KaTeX validation.</p>
-  <textarea id="source">令$x$为数列。
+  <h1>mdmathlint browser preflight</h1>
+  <p class="intro">Paste Markdown for a quick, zero-dependency preview of portable math issues. This page now covers the browser-safe checks added through P4; use the CLI for full parser, KaTeX, configuration, and cross-file validation.</p>
+  <main class="workspace">
+    <section class="panel">
+      <label for="source">Markdown input</label>
+      <textarea id="source" spellcheck="false">令$x$为数列。
 
-所以$$x=1$$成立。</textarea>
-  <button id="check" type="button">Check delimiters</button>
-  <pre id="output"></pre>
+所以$$x=1$$成立。
+
+$a \over b$ and $\require{physics} x$
+
+Refer to $\eqref{eq:missing}$.</textarea>
+      <div class="settings">
+        <div>
+          <label for="profile">Profile</label>
+          <select id="profile">
+            <option value="portable">portable</option>
+            <option value="strict">strict</option>
+            <option value="github">github</option>
+            <option value="llm-output">llm-output</option>
+            <option value="markdown-it">markdown-it</option>
+          </select>
+        </div>
+        <div>
+          <label for="macros">Configured macros (comma-separated, for complexity preview)</label>
+          <input id="macros" type="text" value="\RR,\vect" placeholder="\RR,\vect">
+        </div>
+      </div>
+      <div class="buttons">
+        <button id="check" type="button">Run preflight</button>
+        <button id="fix" type="button" class="secondary">Apply safe spacing fixes</button>
+        <button id="reset" type="button" class="secondary">Restore example</button>
+      </div>
+    </section>
+    <section class="panel" aria-live="polite">
+      <div class="summary">
+        <span class="badge error"><strong id="errors">0</strong> errors</span>
+        <span class="badge warning"><strong id="warnings">0</strong> warnings</span>
+        <span class="badge info"><strong id="infos">0</strong> info</span>
+      </div>
+      <ul id="findings"></ul>
+      <p class="coverage">
+        Previewed here: <code>MDM003</code>, <code>MDM005</code>, <code>MDM011</code>, <code>MDM013</code>, <code>MDM017</code>-<code>MDM021</code>.
+        Run <code>mdmathlint</code> for KaTeX errors, Markdown parser comparisons, configuration, and references across files.
+      </p>
+    </section>
+  </main>
   <script>
+    const example = document.querySelector("#source").value;
     const source = document.querySelector("#source");
-    const output = document.querySelector("#output");
-    document.querySelector("#check").addEventListener("click", () => {
+    const profile = document.querySelector("#profile");
+    const macros = document.querySelector("#macros");
+    const findingsList = document.querySelector("#findings");
+    const counts = {
+      error: document.querySelector("#errors"),
+      warning: document.querySelector("#warnings"),
+      info: document.querySelector("#infos"),
+    };
+
+    function lineColumn(text, offset) {
+      const before = text.slice(0, offset);
+      const lines = before.split("\n");
+      return { line: lines.length, column: lines[lines.length - 1].length + 1 };
+    }
+
+    function lineText(text, offset) {
+      const start = text.lastIndexOf("\n", offset - 1) + 1;
+      const end = text.indexOf("\n", offset);
+      return text.slice(start, end < 0 ? text.length : end);
+    }
+
+    function add(findings, text, code, severity, message, offset, help) {
+      const position = lineColumn(text, offset);
+      findings.push({ code, severity, message, help, ...position, snippet: lineText(text, offset) });
+    }
+
+    function formulaMatches(text) {
+      const formulas = [];
+      const pattern = /\$\$([\s\S]*?)\$\$|\$([^$\n]*?)\$|\\\[([\s\S]*?)\\\]|\\\(([\s\S]*?)\\\)/g;
+      for (const match of text.matchAll(pattern)) {
+        const content = match[1] ?? match[2] ?? match[3] ?? match[4] ?? "";
+        const delimiter = match[0].startsWith("$$") || match[0].startsWith("\\[") ? "display" : "inline";
+        const contentOffset = (match.index ?? 0) + (match[0].startsWith("$$") ? 2 : match[0].startsWith("$") ? 1 : 2);
+        formulas.push({ content, delimiter, offset: match.index ?? 0, contentOffset, full: match[0] });
+      }
+      return formulas;
+    }
+
+    function maxBraceNesting(text) {
+      let current = 0;
+      let maximum = 0;
+      for (let index = 0; index < text.length; index += 1) {
+        if (text[index] === "\\" && (text[index + 1] === "{" || text[index + 1] === "}")) {
+          index += 1;
+          continue;
+        }
+        if (text[index] === "{") maximum = Math.max(maximum, ++current);
+        if (text[index] === "}") current = Math.max(0, current - 1);
+      }
+      return maximum;
+    }
+
+    function macroUses(text, names) {
+      return names.reduce((total, name) => {
+        if (!name) return total;
+        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return total + [...text.matchAll(new RegExp(`${escaped}(?![A-Za-z])`, "g"))].length;
+      }, 0);
+    }
+
+    function severityFor(code) {
+      if (code === "MDM005") return profile.value === "strict" || profile.value === "llm-output" ? "warning" : "info";
+      if (code === "MDM013" && (profile.value === "github" || profile.value === "markdown-it")) return "off";
+      return "warning";
+    }
+
+    function inspect(text) {
       const findings = [];
-      source.value.split("\n").forEach((line, index) => {
-        if (/\S\$\$|\$\$\S/.test(line)) findings.push(`line ${index + 1}: display delimiter should be on its own line`);
-        if (/[\p{L}\p{N}]\$[^$]+\$|\$[^$]+\$[\p{L}\p{N}]/u.test(line)) findings.push(`line ${index + 1}: inline math touches adjacent text`);
+      const formulas = formulaMatches(text);
+      const nestedFormulas = [...text.matchAll(/\$[^$\n]*\{[^}\n]*\$[^$\n]*\$[^}\n]*\}[^$\n]*\$/g)];
+      const configuredMacros = macros.value.split(",").map((macro) => macro.trim()).filter(Boolean);
+      const labels = new Set();
+
+      formulas.forEach((formula) => {
+        if (formula.delimiter === "display") {
+          const line = lineText(text, formula.offset);
+          if (line.trim() !== "$$" && formula.full.startsWith("$$")) {
+            add(findings, text, "MDM003", "warning", "display math delimiter should be on its own line", formula.offset, "Place each $$ delimiter on a separate line.");
+          }
+        } else if (formula.full.startsWith("$") && !nestedFormulas.some((match) => {
+          const start = match.index ?? 0;
+          return formula.offset >= start && formula.offset < start + match[0].length;
+        })) {
+          const before = text[formula.offset - 1] ?? "";
+          const after = text[formula.offset + formula.full.length] ?? "";
+          if (/[\p{L}\p{N}]/u.test(before) || /[\p{L}\p{N}]/u.test(after)) {
+            add(findings, text, "MDM005", severityFor("MDM005"), "inline math should be separated from adjacent text", formula.offset, "Add spaces around inline math.");
+          }
+        }
+        if (formula.delimiter === "inline" && formula.content.includes("\n")) {
+          add(findings, text, "MDM011", "warning", "inline math crosses a line boundary", formula.offset, "Use display math or keep the formula on one line.");
+        }
+        for (const match of formula.content.matchAll(/\\(?:choose|over|atop)\b/g)) {
+          add(findings, text, "MDM018", "warning", `TeX primitive ${match[0]} is not portable between KaTeX and MathJax`, formula.contentOffset + (match.index ?? 0), "Prefer \\binom or \\frac.");
+        }
+        for (const match of formula.content.matchAll(/\\(?:require|bbox|cssId|class)\b/g)) {
+          add(findings, text, "MDM020", "warning", `MathJax-specific command ${match[0]} may not render in KaTeX`, formula.contentOffset + (match.index ?? 0), "Prefer portable LaTeX or confirm MathJax support.");
+        }
+        const reasons = [];
+        const nesting = maxBraceNesting(formula.content);
+        const expansions = macroUses(formula.content, configuredMacros);
+        if (formula.content.length > 400) reasons.push(`${formula.content.length} characters`);
+        if (nesting > 12) reasons.push(`brace nesting depth ${nesting}`);
+        if (expansions > 20) reasons.push(`${expansions} custom macro uses`);
+        if (reasons.length) {
+          add(findings, text, "MDM021", "warning", `complex formula (${reasons.join(", ")})`, formula.contentOffset, "Consider splitting or simplifying the formula.");
+        }
+        for (const match of formula.content.matchAll(/\\label\s*\{([^{}]+)\}/g)) labels.add(match[1]);
       });
-      output.textContent = findings.length ? findings.join("\n") : "No delimiter placement findings.";
+
+      formulas.forEach((formula) => {
+        for (const match of formula.content.matchAll(/\\(?:eq)?ref\s*\{([^{}]+)\}/g)) {
+          if (!labels.has(match[1])) {
+            add(findings, text, "MDM019", "warning", `reference to undefined label "${match[1]}"`, formula.contentOffset + (match.index ?? 0), "Define this label in the current input; use the CLI to resolve labels across files.");
+          }
+        }
+      });
+
+      for (const match of text.matchAll(/\$`[^`\n]+`\$/g)) {
+        const severity = severityFor("MDM013");
+        if (severity !== "off") add(findings, text, "MDM013", severity, "GitHub backtick math delimiter is unsupported by this profile", match.index ?? 0, "Choose github or markdown-it, or use $...$.");
+      }
+      nestedFormulas.forEach((match) => {
+        add(findings, text, "MDM017", "warning", "inline formula appears to contain nested dollar delimiters", match.index ?? 0, "Avoid nesting $...$ inside another formula.");
+      });
+      return findings.sort((left, right) => left.line - right.line || left.column - right.column || left.code.localeCompare(right.code));
+    }
+
+    function render(findings) {
+      Object.entries(counts).forEach(([severity, target]) => {
+        target.textContent = String(findings.filter((finding) => finding.severity === severity).length);
+      });
+      findingsList.replaceChildren();
+      if (findings.length === 0) {
+        const empty = document.createElement("li");
+        empty.className = "empty";
+        empty.textContent = "No browser-preflight findings. Run the CLI before publishing for the complete rule set.";
+        findingsList.append(empty);
+        return;
+      }
+      findings.forEach((finding) => {
+        const item = document.createElement("li");
+        item.className = `finding ${finding.severity}`;
+        const headline = document.createElement("div");
+        headline.className = "headline";
+        headline.innerHTML = `<span class="severity">${finding.severity}</span><span class="code">[${finding.code}]</span><span></span>`;
+        headline.lastElementChild.textContent = finding.message;
+        const location = document.createElement("div");
+        location.className = "location";
+        location.textContent = `line ${finding.line}, column ${finding.column}`;
+        const snippet = document.createElement("code");
+        snippet.className = "snippet";
+        snippet.textContent = finding.snippet;
+        const help = document.createElement("div");
+        help.className = "help";
+        help.textContent = `help: ${finding.help}`;
+        item.append(headline, location, snippet, help);
+        findingsList.append(item);
+      });
+    }
+
+    function applySafeFixes(text) {
+      const displayFixed = text.replace(/\$\$([^\n$]+)\$\$/g, (_match, content) => `\n\n$$\n${content.trim()}\n$$\n\n`);
+      const edits = [];
+      formulaMatches(displayFixed).forEach((formula) => {
+        if (formula.delimiter !== "inline" || !formula.full.startsWith("$")) return;
+        const before = displayFixed[formula.offset - 1] ?? "";
+        const afterOffset = formula.offset + formula.full.length;
+        const after = displayFixed[afterOffset] ?? "";
+        if (/[\p{L}\p{N}]/u.test(before)) edits.push(formula.offset);
+        if (/[\p{L}\p{N}]/u.test(after)) edits.push(afterOffset);
+      });
+      return edits.sort((left, right) => right - left).reduce((current, offset) => (
+        `${current.slice(0, offset)} ${current.slice(offset)}`
+      ), displayFixed);
+    }
+
+    function check() {
+      render(inspect(source.value));
+    }
+
+    document.querySelector("#check").addEventListener("click", check);
+    document.querySelector("#fix").addEventListener("click", () => {
+      source.value = applySafeFixes(source.value);
+      check();
     });
-    document.querySelector("#check").click();
+    document.querySelector("#reset").addEventListener("click", () => {
+      source.value = example;
+      profile.value = "portable";
+      macros.value = "\\RR,\\vect";
+      check();
+    });
+    profile.addEventListener("change", check);
+    macros.addEventListener("change", check);
+    check();
   </script>
 </body>
 </html>

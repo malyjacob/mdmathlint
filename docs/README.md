@@ -1,6 +1,6 @@
 # mdmathlint Documentation
 
-Open `playground.html` locally for a small delimiter-placement preview. Full validation remains available through the CLI:
+Open `playground.html` locally for a zero-dependency browser preflight. It previews spacing and display fixes plus browser-safe P2-P4 diagnostics such as renderer-sensitive commands, undefined in-document references, and formula complexity. Full parser, KaTeX, configuration, and cross-file validation remain available through the CLI:
 
 ```bash
 npx mdmathlint answer.md --profile strict

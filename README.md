@@ -639,7 +639,7 @@ Provides LSP over stdio. It supports `didOpen`, incremental/full `didChange`, `d
 
 ### Browser playground
 
-Open [`docs/playground.html`](docs/playground.html) in any browser — a static page with zero dependencies. Provides delimiter placement checks (browser-side approximations of MDM003 and MDM005). Full KaTeX validation and parser comparison require the CLI.
+Open [`docs/playground.html`](docs/playground.html) in any browser - a static page with zero dependencies. It previews safe spacing/display fixes and browser-side approximations of `MDM003`, `MDM005`, `MDM011`, `MDM013`, and `MDM017`-`MDM021`, including the P4 renderer-risk, in-document reference, and complexity checks. Full KaTeX validation, parser comparison, configuration loading, and cross-file `\label` / `\ref` resolution require the CLI.
 
 ---
 
