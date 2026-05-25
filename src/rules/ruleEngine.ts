@@ -16,6 +16,9 @@ interface ParserComparison {
   selected: MarkdownItMathSpan[];
   texmath: MarkdownItMathSpan[];
   dollarmath: MarkdownItMathSpan[];
+  pandoc: MarkdownItMathSpan[];
+  goldmark: MarkdownItMathSpan[];
+  obsidian: MarkdownItMathSpan[];
 }
 
 interface FormulaContent {
@@ -209,9 +212,15 @@ export function runRules(
       add(diagnostics, diagnostic(settings, "MDM015", "raw math delimiter was not recognized by the Markdown parser", pair.range, "Use portable math delimiter placement.", undefined, pair.id));
     }
     if (markdownIt) {
-      const texmathRecognized = markdownIt.texmath.some((span) => span.pairId === pair.id);
-      const dollarmathRecognized = markdownIt.dollarmath.some((span) => span.pairId === pair.id);
-      if (new Set([remarkRecognized, texmathRecognized, dollarmathRecognized]).size > 1) {
+      const adapters = [
+        markdownIt.texmath,
+        markdownIt.dollarmath,
+        markdownIt.pandoc,
+        markdownIt.goldmark,
+        markdownIt.obsidian,
+      ];
+      const recognizedByAdapters = adapters.map((spans) => spans.some((span) => span.pairId === pair.id));
+      if (new Set([remarkRecognized, ...recognizedByAdapters]).size > 1) {
         add(diagnostics, diagnostic(settings, "MDM014", "math delimiter is interpreted differently by Markdown parsers", pair.range, "Compare the target rendering profile before publishing.", undefined, pair.id));
       }
     }

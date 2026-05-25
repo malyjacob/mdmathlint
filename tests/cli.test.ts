@@ -32,12 +32,16 @@ describe("CLI", () => {
     expect(readFileSync(path, "utf8")).toBe("令 $x$ 为变量。\n");
   });
 
-  it("previews fixes without rewriting a markdown file", () => {
+  it("previews fixes as a unified diff without rewriting a markdown file", () => {
     const directory = mkdtempSync(join(tmpdir(), "mdmathlint-preview-"));
     const path = join(directory, "case.md");
     writeFileSync(path, "令$x$为变量。\n");
     const output = execFileSync(process.execPath, [cli, path, "--fix-dry-run"], { encoding: "utf8" });
-    expect(output).toContain("would be modified");
+    expect(output).toContain(`--- a/${path}`);
+    expect(output).toContain(`+++ b/${path}`);
+    expect(output).toContain("-令$x$为变量。");
+    expect(output).toContain("+令 $x$ 为变量。");
+    expect(output).not.toContain("would be modified");
     expect(readFileSync(path, "utf8")).toBe("令$x$为变量。\n");
   });
 

@@ -128,3 +128,36 @@ export function reportProfileDiffJson(results: ProfileDiffResult[], profiles: Pr
     })),
   }, null, 2);
 }
+
+function unifiedDiff(filePath: string, before: string, after: string): string {
+  const original = before.split(/\r?\n/);
+  const modified = after.split(/\r?\n/);
+  let prefix = 0;
+  while (prefix < original.length && prefix < modified.length && original[prefix] === modified[prefix]) prefix += 1;
+  let suffix = 0;
+  while (
+    suffix < original.length - prefix &&
+    suffix < modified.length - prefix &&
+    original[original.length - suffix - 1] === modified[modified.length - suffix - 1]
+  ) suffix += 1;
+  const contextStart = Math.max(0, prefix - 3);
+  const originalEnd = Math.min(original.length, original.length - suffix + 3);
+  const modifiedEnd = Math.min(modified.length, modified.length - suffix + 3);
+  const lines = [
+    `--- a/${filePath}`,
+    `+++ b/${filePath}`,
+    `@@ -${contextStart + 1},${originalEnd - contextStart} +${contextStart + 1},${modifiedEnd - contextStart} @@`,
+  ];
+  original.slice(contextStart, prefix).forEach((line) => lines.push(` ${line}`));
+  original.slice(prefix, original.length - suffix).forEach((line) => lines.push(`-${line}`));
+  modified.slice(prefix, modified.length - suffix).forEach((line) => lines.push(`+${line}`));
+  original.slice(original.length - suffix, originalEnd).forEach((line) => lines.push(` ${line}`));
+  return lines.join("\n");
+}
+
+export function reportFixDiff(results: LintResult[]): string {
+  return results
+    .filter((result): result is LintResult & { fixedText: string } => result.fixedText !== undefined)
+    .map((result) => unifiedDiff(result.filePath, result.originalText ?? result.sourceText, result.fixedText))
+    .join("\n\n");
+}

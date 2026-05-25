@@ -6,7 +6,7 @@ import process from "node:process";
 import { Command, InvalidArgumentError } from "commander";
 import fg from "fast-glob";
 import { findConfig, lintText, profileDiffText, type LintOptions, type MarkdownItSimulation, type ProfileName } from "./index.js";
-import { reportJson, reportPretty, reportProfileDiffJson, reportProfileDiffPretty, reportSarif } from "./diagnostics/reporters.js";
+import { reportFixDiff, reportJson, reportPretty, reportProfileDiffJson, reportProfileDiffPretty, reportSarif } from "./diagnostics/reporters.js";
 import { initializeConfig } from "./init.js";
 import { explainRule } from "./rules/catalog.js";
 
@@ -126,7 +126,7 @@ async function main(): Promise<number> {
     }
     const output = options.format === "json" ? reportJson(results) : options.format === "sarif" ? reportSarif(results) : reportPretty(results, { color: prettyColor });
     const preview = options.fixDryRun && options.format === "pretty"
-      ? results.filter((result) => result.fixedText !== undefined).map((result) => `fix preview: ${result.filePath} would be modified`).join("\n")
+      ? reportFixDiff(results)
       : "";
     process.stdout.write(`${preview ? `${preview}\n\n` : ""}${output}\n`);
     return results;

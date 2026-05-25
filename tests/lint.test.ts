@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { createDocument } from "../src/core/document.js";
 import { lintText, profileDiffText } from "../src/index.js";
+import { parsePlatformMath } from "../src/parser/platformAdapters.js";
+import { scanSource } from "../src/scanner/sourceScanner.js";
 
 function codes(result: Awaited<ReturnType<typeof lintText>>): string[] {
   return result.diagnostics.map((diagnostic) => diagnostic.code);
@@ -158,5 +161,20 @@ describe("P2 semantic math rules", () => {
     const missing = await lintText("See $\\ref{eq:missing}$.\n");
     expect(codes(defined)).not.toContain("MDM019");
     expect(codes(missing)).toContain("MDM019");
+  });
+});
+
+describe("P3 platform parser adapters", () => {
+  it("models platform differences for attached display delimiters", () => {
+    const document = createDocument("Before $$x=1$$ after.\n");
+    const pairs = scanSource(document).pairs;
+    expect(parsePlatformMath(document, pairs, "pandoc")).toHaveLength(1);
+    expect(parsePlatformMath(document, pairs, "obsidian")).toHaveLength(1);
+    expect(parsePlatformMath(document, pairs, "goldmark")).toHaveLength(0);
+  });
+
+  it("includes the extended adapter matrix in MDM014 comparisons", async () => {
+    const result = await lintText("Use $x$ here.\n", { rules: { MDM014: "warning" } });
+    expect(codes(result)).toContain("MDM014");
   });
 });

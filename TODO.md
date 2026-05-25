@@ -59,17 +59,17 @@
 
 ## P3 — Parser Adapter 扩展
 
-- [ ] **Pandoc adapter** — 覆盖学术写作（R Markdown、Quarto）
-- [ ] **Goldmark adapter** — 覆盖 Hugo 生态
-- [ ] **Obsidian adapter** — Obsidian 的 `$$` 识别规则较宽松
-- [ ] 每个新 adapter 自动纳入 MDM014 多引擎对比
+- [x] **Pandoc adapter** — 覆盖学术写作（R Markdown、Quarto）
+- [x] **Goldmark adapter** — 覆盖 Hugo 生态
+- [x] **Obsidian adapter** — Obsidian 的 `$$` 识别规则较宽松
+- [x] 每个新 adapter 自动纳入 MDM014 多引擎对比
 
 ---
 
 ## P3 — fix diff 输出
 
-- [ ] `--fix-dry-run` 输出 unified diff 格式，而非仅"would be modified"
-- [ ] 显示具体每处修改的内容
+- [x] `--fix-dry-run` 输出 unified diff 格式，而非仅"would be modified"
+- [x] 显示具体每处修改的内容
 
 ---
 

@@ -192,8 +192,10 @@ mdmathlint performs **three passes** over every document: (1) raw source scan �
 | Rule | Default | Fixable | Detects |
 |---|---|---|---|
 | **MDM013** | warning | no | `` $`...`$ `` backtick delimiters — only GitHub / markdown-it support them |
-| **MDM014** | off | no | Same formula recognized differently by remark vs texmath vs dollarmath |
+| **MDM014** | off | no | Same formula recognized differently by remark, markdown-it, Pandoc, Goldmark, or Obsidian simulations |
 | **MDM018** | warning | no | Renderer-sensitive TeX primitives such as `\choose`, `\over`, and `\atop` |
+
+When `MDM014` is enabled, lightweight Pandoc, Goldmark, and Obsidian delimiter adapters join the existing remark and markdown-it comparisons. These model recognition rules for portability checks; they do not embed the full target rendering engines.
 
 ### Before / after
 
@@ -459,7 +461,7 @@ Options:
   --format <format>             pretty (default) | json | sarif
   --color / --no-color          force or disable ANSI color in pretty output
   --fix                         apply safe fixes (spacing, blank lines, delimiter placement)
-  --fix-dry-run                 preview fixes without writing files
+  --fix-dry-run                 show a unified diff without writing files
   --watch                       re-run diagnostics when input files change
   --explain <rule-id>           print a rule's description, examples, and rationale
   --max-warnings <n>            exit code 1 if warnings exceed n
@@ -543,6 +545,8 @@ mdmathlint "docs/**/*.md" --fix
 # preview only, no writes
 mdmathlint "docs/**/*.md" --fix-dry-run
 ```
+
+Dry-run output uses unified diff hunks (`---`, `+++`, `@@`, `-`, `+`) so reviews show each proposed edit precisely.
 
 The fix pipeline guarantees **idempotency** — running `--fix` twice produces the same result as running it once. Overlapping fixes trigger conflict detection; the higher-priority fix wins. At most 5 iterations; if it doesn't stabilize, an `MDM-INTERNAL-FIX` warning is emitted.
 

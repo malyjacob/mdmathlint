@@ -3,6 +3,7 @@ import { createDocument } from "./core/document.js";
 import { resolveRules } from "./core/profiles.js";
 import { applyFixes, collectFixes } from "./fixer/fixPipeline.js";
 import { parseMarkdownItMath } from "./parser/markdownItAdapter.js";
+import { parsePlatformMath } from "./parser/platformAdapters.js";
 import { parseMarkdown } from "./parser/remarkAdapter.js";
 import { runRules } from "./rules/ruleEngine.js";
 import { scanSource } from "./scanner/sourceScanner.js";
@@ -28,11 +29,14 @@ function lintOnce(text: string, options: LintOptions): Diagnostic[] {
   const settings = resolveRules(profile, options.rules);
   const parsed = parseMarkdown(document);
   const scan = scanSource(document, parsed.linkDestinationRanges);
-  const needsMarkdownIt = profile === "markdown-it" || settings.MDM014 !== "off";
-  const markdownIt = needsMarkdownIt
+  const needsComparison = profile === "markdown-it" || settings.MDM014 !== "off";
+  const markdownIt = needsComparison
     ? {
         texmath: parseMarkdownItMath(document, scan.pairs, "texmath"),
         dollarmath: parseMarkdownItMath(document, scan.pairs, "dollarmath"),
+        pandoc: parsePlatformMath(document, scan.pairs, "pandoc"),
+        goldmark: parsePlatformMath(document, scan.pairs, "goldmark"),
+        obsidian: parsePlatformMath(document, scan.pairs, "obsidian"),
         selected: parseMarkdownItMath(document, scan.pairs, options.markdownItSimulation ?? "dollarmath"),
       }
     : undefined;
@@ -48,10 +52,11 @@ function lintOnce(text: string, options: LintOptions): Diagnostic[] {
   });
 }
 
-function result(filePath: string, sourceText: string, diagnostics: Diagnostic[], fixedText?: string): LintResult {
+function result(filePath: string, sourceText: string, diagnostics: Diagnostic[], fixedText?: string, originalText?: string): LintResult {
   return {
     filePath,
     sourceText,
+    ...(originalText === undefined ? {} : { originalText }),
     diagnostics,
     ...(fixedText === undefined ? {} : { fixedText }),
     stats: {
@@ -70,9 +75,9 @@ export async function lintText(text: string, options: LintOptions = {}): Promise
   for (let iteration = 0; iteration < 5; iteration += 1) {
     const diagnostics = lintOnce(current, options);
     const fixes = collectFixes(diagnostics);
-    if (fixes.length === 0) return result(filePath, current, diagnostics, changed ? current : undefined);
+    if (fixes.length === 0) return result(filePath, current, diagnostics, changed ? current : undefined, changed ? text : undefined);
     const next = applyFixes(current, fixes);
-    if (next === current) return result(filePath, current, diagnostics, changed ? current : undefined);
+    if (next === current) return result(filePath, current, diagnostics, changed ? current : undefined, changed ? text : undefined);
     changed = true;
     current = next;
   }
@@ -85,7 +90,7 @@ export async function lintText(text: string, options: LintOptions = {}): Promise
       ? { start: { line: 1, column: 1, offset: 0 }, end: { line: 1, column: 1, offset: 0 } }
       : { start: { line: 1, column: 1, offset: 0 }, end: { line: 1, column: 1, offset: 0 } },
   });
-  return result(filePath, current, diagnostics, current);
+  return result(filePath, current, diagnostics, current, text);
 }
 
 export async function lintFiles(files: string[], options: LintOptions = {}): Promise<LintResult[]> {
