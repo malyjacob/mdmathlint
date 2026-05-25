@@ -18,7 +18,9 @@
   },
   "bin": {
     "mdmathlint": "./dist/cli.js",
-    "mdmathlint-lsp": "./dist/lsp.js"
+    "mdml": "./dist/cli.js",
+    "mdmathlint-lsp": "./dist/lsp.js",
+    "mdml-lsp": "./dist/lsp.js"
   },
   "exports": {
     ".": {
