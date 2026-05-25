@@ -285,6 +285,14 @@ mdmathlint answer.md --profile-diff github,llm-output --format json
 
 mdmathlint auto-discovers `.mdmathlintrc.json` or `.mdmathlintrc.jsonc` (supports comments and trailing commas) by walking up from the current directory. Use `--config <path>` to specify a path explicitly.
 
+Create a starter configuration interactively:
+
+```bash
+mdmathlint --init
+```
+
+The wizard selects a target environment, configures `MDM015`, and optionally records custom LaTeX macros.
+
 ### Full schema
 
 ```jsonc
@@ -434,6 +442,7 @@ Example: `So $$x=1$$ holds.` triggers both MDM015 (not recognized) and MDM003 (n
 mdmathlint [files...] [options]
 
 Options:
+  --init                        create .mdmathlintrc.json interactively
   --stdin                       read Markdown from stdin
   --stdin-filename <name>       virtual filename for stdin diagnostics
   --profile <name>              portable|strict|github|llm-output|markdown-it
@@ -441,6 +450,7 @@ Options:
   --markdown-it-simulation <name>  texmath|dollarmath (default dollarmath)
   --config <path>               explicit config file path
   --format <format>             pretty (default) | json | sarif
+  --color / --no-color          force or disable ANSI color in pretty output
   --fix                         apply safe fixes (spacing, blank lines, delimiter placement)
   --fix-dry-run                 preview fixes without writing files
   --explain <rule-id>           print a rule's description, examples, and rationale
@@ -471,10 +481,16 @@ mdmathlint README.md CONTRIBUTING.md CHANGELOG.md --profile github
 ```
 error[MDM001]: unclosed inline math delimiter
  --> README.md:12:5
- help: Close the delimiter or escape a literal dollar sign.
+    |
+ 12 | Try $x + 1
+    |     ^
+    |
+ = help: Close the delimiter or escape a literal dollar sign.
 
 1 error(s), 1 warning(s), 0 info message(s)
 ```
+
+Color is enabled automatically in an interactive terminal. Use `--color`, `--no-color`, or the `NO_COLOR` environment variable to control it explicitly.
 
 **json** — machine-consumable:
 

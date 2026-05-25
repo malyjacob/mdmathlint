@@ -17,20 +17,20 @@
 
 ## P1 — 诊断输出增强
 
-- [ ] **源码片段（source frame）**：pretty 输出中显示错误行的上下文和 `^^^^` 位置指示
-- [ ] **ANSI 颜色**：error 红色、warning 黄色、info 灰色；错误位置高亮
-- [ ] `--color` / `--no-color` CLI 选项
-- [ ] `NO_COLOR` 环境变量支持
+- [x] **源码片段（source frame）**：pretty 输出中显示错误行的上下文和 `^^^^` 位置指示
+- [x] **ANSI 颜色**：error 红色、warning 黄色、info 灰色；错误位置高亮
+- [x] `--color` / `--no-color` CLI 选项
+- [x] `NO_COLOR` 环境变量支持
 
 ---
 
 ## P1 — `mdmathlint --init`
 
-- [ ] 交互式初始化向导
+- [x] 交互式初始化向导
   - 选择目标渲染环境（GitHub / markdown-it / Obsidian / LLM 输出 / 最严格）
   - 是否开启 MDM015
   - 是否配置自定义 LaTeX 宏（逐条输入）
-- [ ] 生成 `.mdmathlintrc.json`
+- [x] 生成 `.mdmathlintrc.json`
 
 ---
 

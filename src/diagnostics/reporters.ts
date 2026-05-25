@@ -1,13 +1,49 @@
-import type { LintResult, ProfileDiffResult, ProfileName } from "../types.js";
+import type { Diagnostic, LintResult, ProfileDiffResult, ProfileName, Severity } from "../types.js";
 
-export function reportPretty(results: LintResult[]): string {
+interface PrettyOptions {
+  color?: boolean;
+}
+
+const ansi = {
+  reset: "\u001b[0m",
+  error: "\u001b[31m",
+  warning: "\u001b[33m",
+  info: "\u001b[90m",
+} satisfies Record<Severity | "reset", string>;
+
+function styled(text: string, severity: Severity, color = false): string {
+  return color ? `${ansi[severity]}${text}${ansi.reset}` : text;
+}
+
+function sourceFrame(sourceText: string, diagnostic: Diagnostic, color = false): string[] {
+  const sourceLines = sourceText.split(/\r?\n/);
+  const firstLine = Math.max(1, diagnostic.range.start.line - 1);
+  const lastLine = Math.min(sourceLines.length, diagnostic.range.end.line + 1);
+  const width = String(lastLine).length;
+  const lines = [` ${" ".repeat(width)} |`];
+  for (let line = firstLine; line <= lastLine; line += 1) {
+    const content = sourceLines[line - 1] ?? "";
+    lines.push(` ${String(line).padStart(width)} | ${content}`);
+    if (line < diagnostic.range.start.line || line > diagnostic.range.end.line) continue;
+    const startColumn = line === diagnostic.range.start.line ? diagnostic.range.start.column : 1;
+    const endColumn = line === diagnostic.range.end.line ? diagnostic.range.end.column : content.length + 1;
+    const marker = `${" ".repeat(Math.max(0, startColumn - 1))}${"^".repeat(Math.max(1, endColumn - startColumn))}`;
+    lines.push(` ${" ".repeat(width)} | ${styled(marker, diagnostic.severity, color)}`);
+  }
+  lines.push(` ${" ".repeat(width)} |`);
+  return lines;
+}
+
+export function reportPretty(results: LintResult[], options: PrettyOptions = {}): string {
   const lines: string[] = [];
   results.forEach((result) => {
     result.diagnostics.forEach((diagnostic) => {
       const location = `${result.filePath}:${diagnostic.range.start.line}:${diagnostic.range.start.column}`;
-      lines.push(`${diagnostic.severity}[${diagnostic.code}]: ${diagnostic.message}`);
+      const label = `${diagnostic.severity}[${diagnostic.code}]`;
+      lines.push(`${styled(label, diagnostic.severity, options.color)}: ${diagnostic.message}`);
       lines.push(` --> ${location}`);
-      if (diagnostic.help) lines.push(` help: ${diagnostic.help}`);
+      lines.push(...sourceFrame(result.sourceText, diagnostic, options.color));
+      if (diagnostic.help) lines.push(` = help: ${diagnostic.help}`);
       lines.push("");
     });
   });
@@ -67,14 +103,14 @@ export function reportSarif(results: LintResult[]): string {
   }, null, 2);
 }
 
-export function reportProfileDiffPretty(results: ProfileDiffResult[], profiles: ProfileName[]): string {
+export function reportProfileDiffPretty(results: ProfileDiffResult[], profiles: ProfileName[], options: PrettyOptions = {}): string {
   const lines: string[] = [];
   results.forEach((result) => {
     lines.push(result.filePath);
     profiles.forEach((profile) => {
       const diagnostics = result.profiles[profile]?.diagnostics ?? [];
       const summary = diagnostics.length
-        ? diagnostics.map((diagnostic) => `${diagnostic.severity}[${diagnostic.code}]`).join(", ")
+        ? diagnostics.map((diagnostic) => styled(`${diagnostic.severity}[${diagnostic.code}]`, diagnostic.severity, options.color)).join(", ")
         : "clean";
       lines.push(`  ${profile}: ${summary}`);
     });

@@ -65,4 +65,59 @@ describe("CLI", () => {
     expect(result.stdout).toContain("\"profiles\"");
     expect(result.stdout).toContain("\"MDM013\"");
   });
+
+  it("shows a source frame in pretty diagnostics", () => {
+    const output = execFileSync(process.execPath, [cli, "--stdin", "--profile", "strict", "--no-color"], {
+      input: "令$x$为变量。\n",
+      encoding: "utf8",
+    });
+    expect(output).toContain("warning[MDM005]");
+    expect(output).toContain("1 | 令$x$为变量。");
+    expect(output).toContain("|  ^^^");
+  });
+
+  it("supports ANSI color controls and NO_COLOR", () => {
+    const colored = execFileSync(process.execPath, [cli, "--stdin", "--profile", "strict", "--color"], {
+      input: "令$x$为变量。\n",
+      encoding: "utf8",
+    });
+    const noColor = execFileSync(process.execPath, [cli, "--stdin", "--profile", "strict"], {
+      input: "令$x$为变量。\n",
+      encoding: "utf8",
+      env: { ...process.env, NO_COLOR: "1" },
+    });
+    expect(colored).toContain("\u001b[33mwarning[MDM005]\u001b[0m");
+    expect(colored).toContain("\u001b[33m ^^^\u001b[0m");
+    expect(noColor).not.toContain("\u001b[");
+  });
+
+  it("initializes a configuration interactively", () => {
+    const directory = mkdtempSync(join(tmpdir(), "mdmathlint-init-"));
+    const output = execFileSync(process.execPath, [cli, "--init"], {
+      cwd: directory,
+      input: "2\ny\ny\n\\RR\n\\mathbb{R}\n\n",
+      encoding: "utf8",
+    });
+    const config = JSON.parse(readFileSync(join(directory, ".mdmathlintrc.json"), "utf8"));
+    expect(config).toEqual({
+      profile: "markdown-it",
+      rules: { MDM015: "warning" },
+      katex: { macros: { "\\RR": "\\mathbb{R}" } },
+    });
+    expect(output).toContain("Created");
+  });
+
+  it("does not overwrite an existing configuration during initialization", () => {
+    const directory = mkdtempSync(join(tmpdir(), "mdmathlint-init-existing-"));
+    const path = join(directory, ".mdmathlintrc.json");
+    writeFileSync(path, "{\"profile\":\"github\"}\n");
+    const result = spawnSync(process.execPath, [cli, "--init"], {
+      cwd: directory,
+      input: "5\nn\nn\n",
+      encoding: "utf8",
+    });
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain("Configuration file already exists");
+    expect(readFileSync(path, "utf8")).toBe("{\"profile\":\"github\"}\n");
+  });
 });

@@ -6,6 +6,7 @@ import { Command, InvalidArgumentError } from "commander";
 import fg from "fast-glob";
 import { findConfig, lintText, profileDiffText, type LintOptions, type MarkdownItSimulation, type ProfileName } from "./index.js";
 import { reportJson, reportPretty, reportProfileDiffJson, reportProfileDiffPretty, reportSarif } from "./diagnostics/reporters.js";
+import { initializeConfig } from "./init.js";
 import { explainRule } from "./rules/catalog.js";
 
 function integer(value: string): number {
@@ -23,6 +24,7 @@ async function stdin(): Promise<string> {
 const command = new Command()
   .name("mdmathlint")
   .argument("[files...]")
+  .option("--init", "create a .mdmathlintrc.json configuration interactively")
   .option("--stdin", "read Markdown from stdin")
   .option("--stdin-filename <name>", "virtual filename for stdin diagnostics", "<stdin>")
   .option("--profile <name>", "portable|strict|github|llm-output|markdown-it")
@@ -30,6 +32,8 @@ const command = new Command()
   .option("--markdown-it-simulation <name>", "texmath|dollarmath", "dollarmath")
   .option("--config <path>", "configuration file path")
   .option("--format <format>", "pretty|json|sarif", "pretty")
+  .option("--color", "force ANSI colors in pretty output")
+  .option("--no-color", "disable ANSI colors in pretty output")
   .option("--fix", "apply safe fixes")
   .option("--fix-dry-run", "calculate fixes without writing files")
   .option("--explain <rule-id>", "print a rule explanation")
@@ -38,6 +42,7 @@ const command = new Command()
 async function main(): Promise<number> {
   command.parse();
   const options = command.opts<{
+    init?: boolean;
     stdin?: boolean;
     stdinFilename: string;
     profile?: ProfileName;
@@ -45,11 +50,16 @@ async function main(): Promise<number> {
     markdownItSimulation?: MarkdownItSimulation;
     config?: string;
     format: "pretty" | "json" | "sarif";
+    color?: boolean;
     fix?: boolean;
     fixDryRun?: boolean;
     explain?: string;
     maxWarnings?: number;
   }>();
+  if (options.init) {
+    await initializeConfig();
+    return 0;
+  }
   if (options.explain) {
     const explanation = explainRule(options.explain);
     if (!explanation) throw new Error(`Unknown rule: ${options.explain}`);
@@ -61,6 +71,11 @@ async function main(): Promise<number> {
     throw new Error(`Unsupported markdown-it simulation: ${options.markdownItSimulation}`);
   }
   const found = findConfig(process.cwd(), options.config);
+  const prettyColor = process.argv.includes("--no-color")
+    ? false
+    : process.argv.includes("--color")
+      ? true
+      : process.env.NO_COLOR === undefined && Boolean(process.stdout.isTTY);
   const lintOptions: LintOptions = {
     profile: options.profile ?? found.config.profile ?? "portable",
     rules: found.config.rules,
@@ -90,7 +105,7 @@ async function main(): Promise<number> {
     const comparisons = await Promise.all(inputs.map((input) => profileDiffText(input.text, profiles, { ...lintOptions, filePath: input.path })));
     const output = options.format === "json"
       ? reportProfileDiffJson(comparisons, profiles)
-      : reportProfileDiffPretty(comparisons, profiles);
+      : reportProfileDiffPretty(comparisons, profiles, { color: prettyColor });
     process.stdout.write(`${output}\n`);
     return comparisons.some((comparison) => profiles.some((profile) => (comparison.profiles[profile]?.stats.errorCount ?? 0) > 0)) ? 1 : 0;
   }
@@ -102,7 +117,7 @@ async function main(): Promise<number> {
       }
     }
   }
-  const output = options.format === "json" ? reportJson(results) : options.format === "sarif" ? reportSarif(results) : reportPretty(results);
+  const output = options.format === "json" ? reportJson(results) : options.format === "sarif" ? reportSarif(results) : reportPretty(results, { color: prettyColor });
   const preview = options.fixDryRun && options.format === "pretty"
     ? results.filter((result) => result.fixedText !== undefined).map((result) => `fix preview: ${result.filePath} would be modified`).join("\n")
     : "";

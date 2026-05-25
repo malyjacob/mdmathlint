@@ -287,6 +287,14 @@ mdmathlint answer.md --profile-diff github,llm-output --format json
 
 mdmathlint 从当前目录向上查找 `.mdmathlintrc.json` 或 `.mdmathlintrc.jsonc`（支持注释和尾逗号）。也可以通过 `--config <path>` 指定路径。
 
+可通过交互向导创建初始配置：
+
+```bash
+mdmathlint --init
+```
+
+向导会选择目标渲染环境、配置 `MDM015`，并可选记录自定义 LaTeX 宏。
+
 ### 完整配置项
 
 ```jsonc
@@ -436,6 +444,7 @@ MDM007（代码块中的公式）
 mdmathlint [文件...] [选项]
 
 选项：
+  --init                        交互式创建 .mdmathlintrc.json
   --stdin                       从标准输入读取 Markdown
   --stdin-filename <名称>       stdin 诊断中使用的虚拟文件名
   --profile <名称>              portable|strict|github|llm-output|markdown-it
@@ -443,6 +452,7 @@ mdmathlint [文件...] [选项]
   --markdown-it-simulation <名称>  texmath|dollarmath（默认 dollarmath）
   --config <路径>               显式指定配置文件路径
   --format <格式>               pretty（默认）| json | sarif
+  --color / --no-color          强制启用或禁用 pretty 输出中的 ANSI 颜色
   --fix                         应用安全修复（空格、空行、定界符位置）
   --fix-dry-run                 预览修复而不写入文件
   --explain <规则代号>          打印规则的详细说明、示例和原因
@@ -473,10 +483,16 @@ mdmathlint README.md CONTRIBUTING.md CHANGELOG.md --profile github
 ```
 error[MDM001]: unclosed inline math delimiter
  --> README.md:12:5
- help: Close the delimiter or escape a literal dollar sign.
+    |
+ 12 | Try $x + 1
+    |     ^
+    |
+ = help: Close the delimiter or escape a literal dollar sign.
 
 1 error(s), 1 warning(s), 0 info message(s)
 ```
+
+在交互终端中颜色会自动启用；也可以用 `--color`、`--no-color` 或 `NO_COLOR` 环境变量显式控制。
 
 **json**——供其他工具消费：
 

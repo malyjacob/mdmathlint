@@ -48,9 +48,10 @@ function lintOnce(text: string, options: LintOptions): Diagnostic[] {
   });
 }
 
-function result(filePath: string, diagnostics: Diagnostic[], fixedText?: string): LintResult {
+function result(filePath: string, sourceText: string, diagnostics: Diagnostic[], fixedText?: string): LintResult {
   return {
     filePath,
+    sourceText,
     diagnostics,
     ...(fixedText === undefined ? {} : { fixedText }),
     stats: {
@@ -63,15 +64,15 @@ function result(filePath: string, diagnostics: Diagnostic[], fixedText?: string)
 
 export async function lintText(text: string, options: LintOptions = {}): Promise<LintResult> {
   const filePath = options.filePath ?? "<text>";
-  if (!options.fix) return result(filePath, lintOnce(text, options));
+  if (!options.fix) return result(filePath, text, lintOnce(text, options));
   let current = text;
   let changed = false;
   for (let iteration = 0; iteration < 5; iteration += 1) {
     const diagnostics = lintOnce(current, options);
     const fixes = collectFixes(diagnostics);
-    if (fixes.length === 0) return result(filePath, diagnostics, changed ? current : undefined);
+    if (fixes.length === 0) return result(filePath, current, diagnostics, changed ? current : undefined);
     const next = applyFixes(current, fixes);
-    if (next === current) return result(filePath, diagnostics, changed ? current : undefined);
+    if (next === current) return result(filePath, current, diagnostics, changed ? current : undefined);
     changed = true;
     current = next;
   }
@@ -84,7 +85,7 @@ export async function lintText(text: string, options: LintOptions = {}): Promise
       ? { start: { line: 1, column: 1, offset: 0 }, end: { line: 1, column: 1, offset: 0 } }
       : { start: { line: 1, column: 1, offset: 0 }, end: { line: 1, column: 1, offset: 0 } },
   });
-  return result(filePath, diagnostics, current);
+  return result(filePath, current, diagnostics, current);
 }
 
 export async function lintFiles(files: string[], options: LintOptions = {}): Promise<LintResult[]> {

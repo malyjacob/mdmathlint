@@ -54,6 +54,7 @@ export interface LintOptions {
 
 export interface LintResult {
   filePath: string;
+  sourceText: string;
   diagnostics: Diagnostic[];
   fixedText?: string;
   stats: {
