@@ -36,24 +36,24 @@
 
 ## P2 — 规则增强
 
-- [ ] **MDM017 嵌套定界符** — 检测 `$\text{for $x>0$}$` 中外层 `$` 被意外闭合
-- [ ] **MDM018 KaTeX-vs-MathJax 兼容** — 检测使用了 MathJax 支持但 KaTeX 不支持的 TeX 原语（`\choose`、`\over`、`\atop` 等）
-- [ ] **`\label` / `\ref` 一致性** — 检测引用了不存在的标签
+- [x] **MDM017 嵌套定界符** — 检测 `$\text{for $x>0$}$` 中外层 `$` 被意外闭合
+- [x] **MDM018 KaTeX-vs-MathJax 兼容** — 检测使用了 MathJax 支持但 KaTeX 不支持的 TeX 原语（`\choose`、`\over`、`\atop` 等）
+- [x] **`\label` / `\ref` 一致性** — 检测引用了不存在的标签（MDM019）
 
 ---
 
 ## P2 — 配置文件增强
 
-- [ ] **`root` 标记** — 配置文件支持 `"root": true`，标记为查找边界，阻止继续向上遍历。解决 monorepo 中子包意外继承祖先配置的问题
-- [ ] **`--no-config` CLI 选项** — 完全跳过配置文件发现，仅使用命令行参数
+- [x] **`root` 标记** — 配置文件支持 `"root": true`，标记为查找边界，阻止继续向上遍历。解决 monorepo 中子包意外继承祖先配置的问题
+- [x] **`--no-config` CLI 选项** — 完全跳过配置文件发现，仅使用命令行参数
 
 ---
 
 ## P2 — Watch 模式
 
-- [ ] `mdmathlint "docs/**/*.md" --watch`
-- [ ] 文件变化时自动重新检查
-- [ ] 依赖 `fs.watch` 或 `chokidar`
+- [x] `mdmathlint "docs/**/*.md" --watch`
+- [x] 文件变化时自动重新检查
+- [x] 基于 `fs.watch` 实现
 
 ---
 

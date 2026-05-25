@@ -34,6 +34,9 @@ const rules: Record<string, RuleExplanation> = {
   MDM013: { name: "unsupported-delimiter-for-profile", defaultSeverity: "warning", fixable: false, summary: "The selected profile does not support this delimiter style.", why: "Platform-specific delimiters are not portable." },
   MDM014: { name: "parser-disagreement", defaultSeverity: "off", fixable: false, summary: "Math recognition differs between parsers.", why: "A formula that works in one rendering chain may fail in another." },
   MDM015: { name: "raw-delimiter-not-parsed", defaultSeverity: "off", fixable: false, summary: "A raw math delimiter was not recognized by the selected parser.", why: "This usually signals non-portable placement or ambiguous literal dollars." },
+  MDM017: { name: "nested-dollar-delimiter", defaultSeverity: "warning", fixable: false, summary: "An inline formula appears to contain nested dollar delimiters.", why: "Dollar-delimited math cannot safely contain another dollar-delimited formula." },
+  MDM018: { name: "mathjax-only-primitive", defaultSeverity: "warning", fixable: false, summary: "Formula uses a TeX primitive with inconsistent KaTeX and MathJax support.", why: "Renderer-specific primitives make documents fail when moved between math engines." },
+  MDM019: { name: "undefined-label-reference", defaultSeverity: "warning", fixable: false, summary: "A formula references a label not defined in this document.", why: "Broken equation references render as missing or unresolved links." },
 };
 
 export function explainRule(ruleId: string): string | undefined {

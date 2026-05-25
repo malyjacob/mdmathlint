@@ -18,6 +18,11 @@ interface ParserComparison {
   dollarmath: MarkdownItMathSpan[];
 }
 
+interface FormulaContent {
+  content: string;
+  offset: number;
+}
+
 function intersects(left: Diagnostic, right: Diagnostic): boolean {
   return left.range.start.offset <= right.range.end.offset && right.range.start.offset <= left.range.end.offset;
 }
@@ -93,6 +98,26 @@ function isAdjacent(char: string | undefined): boolean {
   return Boolean(char && /[\p{L}\p{N}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(char));
 }
 
+function braceBalance(text: string): number {
+  let balance = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === "\\" && ["{", "}"].includes(text[index + 1])) {
+      index += 1;
+      continue;
+    }
+    if (text[index] === "{") balance += 1;
+    if (text[index] === "}") balance -= 1;
+  }
+  return balance;
+}
+
+function formulaContents(scan: ScanResult): FormulaContent[] {
+  return [
+    ...scan.pairs.map((pair) => ({ content: pair.content, offset: pair.open.endOffset })),
+    ...scan.bracketPairs.map((pair) => ({ content: pair.content, offset: pair.open.endOffset })),
+  ];
+}
+
 export function runRules(
   document: SourceDocument,
   scan: ScanResult,
@@ -103,6 +128,55 @@ export function runRules(
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   const settings = options.settings;
+  const formulas = formulaContents(scan);
+
+  const singleTokens = scan.tokens.filter((token) => token.kind === "single");
+  for (let index = 0; index <= singleTokens.length - 4; index += 1) {
+    const [outerOpen, innerOpen, innerClose, outerClose] = singleTokens.slice(index, index + 4);
+    const left = document.text.slice(outerOpen.endOffset, innerOpen.offset);
+    const right = document.text.slice(innerClose.endOffset, outerClose.offset);
+    if (braceBalance(left) > 0 && braceBalance(right) < 0 && braceBalance(`${left}${right}`) === 0) {
+      add(diagnostics, diagnostic(
+        settings,
+        "MDM017",
+        "inline math appears to contain nested $...$ delimiters",
+        rangeAt(document, outerOpen.offset, outerClose.endOffset),
+        "Use a single math span and remove the nested dollar delimiters.",
+      ));
+      index += 3;
+    }
+  }
+
+  formulas.forEach((formula) => {
+    for (const match of formula.content.matchAll(/\\(?:choose|over|atop)\b/g)) {
+      const offset = formula.offset + (match.index ?? 0);
+      add(diagnostics, diagnostic(
+        settings,
+        "MDM018",
+        `TeX primitive ${match[0]} is not portable between KaTeX and MathJax`,
+        rangeAt(document, offset, offset + match[0].length),
+        "Prefer \\binom, \\frac, or another portable LaTeX command.",
+      ));
+    }
+  });
+
+  const labels = new Set<string>();
+  formulas.forEach((formula) => {
+    for (const match of formula.content.matchAll(/\\label\s*\{([^{}]+)\}/g)) labels.add(match[1]);
+  });
+  formulas.forEach((formula) => {
+    for (const match of formula.content.matchAll(/\\(?:eq)?ref\s*\{([^{}]+)\}/g)) {
+      if (labels.has(match[1])) continue;
+      const offset = formula.offset + (match.index ?? 0);
+      add(diagnostics, diagnostic(
+        settings,
+        "MDM019",
+        `reference to undefined label "${match[1]}"`,
+        rangeAt(document, offset, offset + match[0].length),
+        "Define the referenced label in this document or correct the reference name.",
+      ));
+    }
+  });
 
   scan.unmatched.forEach((token) => {
     const code = token.kind === "single" ? "MDM001" : "MDM002";

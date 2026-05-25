@@ -148,7 +148,7 @@ mdmathlint "docs/**/*.md"
 
 mdmathlint performs **three passes** over every document: (1) raw source scan — finds every `$` / `$$`; (2) Markdown parser — determines which are actual math nodes; (3) KaTeX parser — validates TeX syntax inside formulas. The three pipelines cross-validate in the rule engine.
 
-15 rules organized into five categories. Run `mdmathlint --explain <rule-id>` for full details on any rule, including bad and good examples.
+18 rules organized into five categories. Run `mdmathlint --explain <rule-id>` for full details on any rule, including bad and good examples.
 
 ### Delimiter structure — "the formula was never recognized"
 
@@ -159,6 +159,7 @@ mdmathlint performs **three passes** over every document: (1) raw source scan �
 | **MDM003** | warning | **yes** | `$$` not on its own line — most parsers reject it |
 | **MDM004** | warning | **yes** | Display block missing surrounding blank lines |
 | **MDM015** | **off** | no | Raw `$` / `$$` exists but the parser didn't recognize it |
+| **MDM017** | warning | no | Nested `$...$` delimiters inside braced inline math |
 
 > MDM015 is the single rule that distinguishes mdmathlint from every KaTeX wrapper. It ships off by default — you should turn it on. See [Caveats](#caveats-and-common-mistakes).
 
@@ -184,6 +185,7 @@ mdmathlint performs **three passes** over every document: (1) raw source scan �
 | Rule | Default | Fixable | Detects |
 |---|---|---|---|
 | **MDM012** | error | no | KaTeX `ParseError` — missing brace, unknown command, bad nesting |
+| **MDM019** | warning | no | `\ref{...}` / `\eqref{...}` targets without a document-local `\label{...}` |
 
 ### Cross-platform — "works on GitHub, breaks elsewhere"
 
@@ -191,6 +193,7 @@ mdmathlint performs **three passes** over every document: (1) raw source scan �
 |---|---|---|---|
 | **MDM013** | warning | no | `` $`...`$ `` backtick delimiters — only GitHub / markdown-it support them |
 | **MDM014** | off | no | Same formula recognized differently by remark vs texmath vs dollarmath |
+| **MDM018** | warning | no | Renderer-sensitive TeX primitives such as `\choose`, `\over`, and `\atop` |
 
 ### Before / after
 
@@ -283,7 +286,7 @@ mdmathlint answer.md --profile-diff github,llm-output --format json
 
 ## Configuration
 
-mdmathlint auto-discovers `.mdmathlintrc.json` or `.mdmathlintrc.jsonc` (supports comments and trailing commas) by walking up from the current directory. Use `--config <path>` to specify a path explicitly.
+mdmathlint auto-discovers `.mdmathlintrc.json` or `.mdmathlintrc.jsonc` (supports comments and trailing commas) by walking up from the current directory. Ancestor settings are merged as defaults and nearer files override them; set `"root": true` to stop inheritance at a package boundary. Use `--config <path>` to specify one file explicitly or `--no-config` to ignore discovered configuration.
 
 Create a starter configuration interactively:
 
@@ -297,6 +300,9 @@ The wizard selects a target environment, configures `MDM015`, and optionally rec
 
 ```jsonc
 {
+  // Stop inheriting ancestor configurations in a monorepo package
+  "root": true,
+
   // Target rendering environment (default "portable")
   "profile": "strict",
 
@@ -449,10 +455,12 @@ Options:
   --profile-diff <a,b>          compare diagnostics across two or more profiles
   --markdown-it-simulation <name>  texmath|dollarmath (default dollarmath)
   --config <path>               explicit config file path
+  --no-config                   skip discovered configuration files
   --format <format>             pretty (default) | json | sarif
   --color / --no-color          force or disable ANSI color in pretty output
   --fix                         apply safe fixes (spacing, blank lines, delimiter placement)
   --fix-dry-run                 preview fixes without writing files
+  --watch                       re-run diagnostics when input files change
   --explain <rule-id>           print a rule's description, examples, and rationale
   --max-warnings <n>            exit code 1 if warnings exceed n
 ```
@@ -472,6 +480,9 @@ mdmathlint "docs/**/*.md" --profile strict
 
 # multiple files
 mdmathlint README.md CONTRIBUTING.md CHANGELOG.md --profile github
+
+# keep checking matching files while editing
+mdmathlint "docs/**/*.md" --watch
 ```
 
 ### Output formats

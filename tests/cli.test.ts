@@ -1,10 +1,18 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const cli = resolve("dist/cli.js");
+
+async function waitForOutput(read: () => string, expected: string): Promise<void> {
+  const deadline = Date.now() + 5000;
+  while (!read().includes(expected)) {
+    if (Date.now() > deadline) throw new Error(`Timed out waiting for output containing ${expected}`);
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
+  }
+}
 
 describe("CLI", () => {
   it("lints stdin as JSON with a profile", async () => {
@@ -119,5 +127,42 @@ describe("CLI", () => {
     expect(result.status).toBe(2);
     expect(result.stderr).toContain("Configuration file already exists");
     expect(readFileSync(path, "utf8")).toBe("{\"profile\":\"github\"}\n");
+  });
+
+  it("can skip discovered configuration files", () => {
+    const directory = mkdtempSync(join(tmpdir(), "mdmathlint-no-config-"));
+    writeFileSync(join(directory, ".mdmathlintrc.json"), JSON.stringify({ rules: { MDM005: "off" } }));
+    const inherited = execFileSync(process.execPath, [cli, "--stdin", "--format", "json"], {
+      cwd: directory,
+      input: "令$x$为变量。\n",
+      encoding: "utf8",
+    });
+    const isolated = execFileSync(process.execPath, [cli, "--stdin", "--no-config", "--format", "json"], {
+      cwd: directory,
+      input: "令$x$为变量。\n",
+      encoding: "utf8",
+    });
+    expect(inherited).not.toContain("\"MDM005\"");
+    expect(isolated).toContain("\"MDM005\"");
+  });
+
+  it("rechecks changed Markdown files in watch mode", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "mdmathlint-watch-"));
+    const path = join(directory, "watch.md");
+    writeFileSync(path, "Good $x$.\n");
+    const child = spawn(process.execPath, [cli, path, "--watch", "--no-color"], {
+      cwd: directory,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    try {
+      await waitForOutput(() => stdout, "0 error(s)");
+      writeFileSync(path, "bad $x\n");
+      await waitForOutput(() => stdout, "MDM001");
+    } finally {
+      child.kill();
+    }
   });
 });

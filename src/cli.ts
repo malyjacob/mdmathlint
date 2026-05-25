@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { watch } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import process from "node:process";
@@ -31,11 +32,13 @@ const command = new Command()
   .option("--profile-diff <profiles>", "compare comma-separated profiles")
   .option("--markdown-it-simulation <name>", "texmath|dollarmath", "dollarmath")
   .option("--config <path>", "configuration file path")
+  .option("--no-config", "skip configuration file discovery")
   .option("--format <format>", "pretty|json|sarif", "pretty")
   .option("--color", "force ANSI colors in pretty output")
   .option("--no-color", "disable ANSI colors in pretty output")
   .option("--fix", "apply safe fixes")
   .option("--fix-dry-run", "calculate fixes without writing files")
+  .option("--watch", "watch input files and lint again when they change")
   .option("--explain <rule-id>", "print a rule explanation")
   .option("--max-warnings <n>", "fail if warnings exceed n", integer);
 
@@ -48,11 +51,12 @@ async function main(): Promise<number> {
     profile?: ProfileName;
     profileDiff?: string;
     markdownItSimulation?: MarkdownItSimulation;
-    config?: string;
+    config?: string | false;
     format: "pretty" | "json" | "sarif";
     color?: boolean;
     fix?: boolean;
     fixDryRun?: boolean;
+    watch?: boolean;
     explain?: string;
     maxWarnings?: number;
   }>();
@@ -70,12 +74,14 @@ async function main(): Promise<number> {
   if (options.markdownItSimulation && !["texmath", "dollarmath"].includes(options.markdownItSimulation)) {
     throw new Error(`Unsupported markdown-it simulation: ${options.markdownItSimulation}`);
   }
-  const found = findConfig(process.cwd(), options.config);
-  const prettyColor = process.argv.includes("--no-color")
-    ? false
-    : process.argv.includes("--color")
-      ? true
-      : process.env.NO_COLOR === undefined && Boolean(process.stdout.isTTY);
+  if (options.watch && options.stdin) throw new Error("--watch cannot be used with --stdin.");
+  if (options.watch && options.profileDiff) throw new Error("--watch cannot be used with --profile-diff.");
+  const found = options.config === false
+    ? { config: {} }
+    : findConfig(process.cwd(), options.config);
+  const prettyColor = options.color === undefined
+    ? process.env.NO_COLOR === undefined && Boolean(process.stdout.isTTY)
+    : options.color;
   const lintOptions: LintOptions = {
     profile: options.profile ?? found.config.profile ?? "portable",
     rules: found.config.rules,
@@ -109,21 +115,37 @@ async function main(): Promise<number> {
     process.stdout.write(`${output}\n`);
     return comparisons.some((comparison) => profiles.some((profile) => (comparison.profiles[profile]?.stats.errorCount ?? 0) > 0)) ? 1 : 0;
   }
-  const results = await Promise.all(inputs.map((input) => lintText(input.text, { ...lintOptions, filePath: input.path })));
-  if (options.fix && !options.fixDryRun) {
-    for (let index = 0; index < inputs.length; index += 1) {
-      if (inputs[index].writable && results[index].fixedText !== undefined) {
-        await writeFile(resolve(inputs[index].path), results[index].fixedText!, "utf8");
+  async function lintInputs(currentInputs: Array<{ path: string; text: string; writable: boolean }>) {
+    const results = await Promise.all(currentInputs.map((input) => lintText(input.text, { ...lintOptions, filePath: input.path })));
+    if (options.fix && !options.fixDryRun) {
+      for (let index = 0; index < currentInputs.length; index += 1) {
+        if (currentInputs[index].writable && results[index].fixedText !== undefined) {
+          await writeFile(resolve(currentInputs[index].path), results[index].fixedText!, "utf8");
+        }
       }
     }
+    const output = options.format === "json" ? reportJson(results) : options.format === "sarif" ? reportSarif(results) : reportPretty(results, { color: prettyColor });
+    const preview = options.fixDryRun && options.format === "pretty"
+      ? results.filter((result) => result.fixedText !== undefined).map((result) => `fix preview: ${result.filePath} would be modified`).join("\n")
+      : "";
+    process.stdout.write(`${preview ? `${preview}\n\n` : ""}${output}\n`);
+    return results;
   }
-  const output = options.format === "json" ? reportJson(results) : options.format === "sarif" ? reportSarif(results) : reportPretty(results, { color: prettyColor });
-  const preview = options.fixDryRun && options.format === "pretty"
-    ? results.filter((result) => result.fixedText !== undefined).map((result) => `fix preview: ${result.filePath} would be modified`).join("\n")
-    : "";
-  process.stdout.write(`${preview ? `${preview}\n\n` : ""}${output}\n`);
+  const results = await lintInputs(inputs);
   const errors = results.reduce((count, item) => count + item.stats.errorCount, 0);
   const warnings = results.reduce((count, item) => count + item.stats.warningCount, 0);
+  if (options.watch) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    paths.forEach((path) => watch(path, () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void Promise.all(paths.map(async (filePath) => ({ path: filePath, text: await readFile(filePath, "utf8"), writable: true })))
+          .then(lintInputs)
+          .catch((error: unknown) => process.stderr.write(`mdmathlint: ${error instanceof Error ? error.message : String(error)}\n`));
+      }, 50);
+    }));
+    await new Promise<void>(() => undefined);
+  }
   return errors > 0 || (options.maxWarnings !== undefined && warnings > options.maxWarnings) ? 1 : 0;
 }
 

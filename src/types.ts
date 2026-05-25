@@ -65,6 +65,7 @@ export interface LintResult {
 }
 
 export interface ConfigFile {
+  root?: boolean;
   profile?: ProfileName;
   rules?: Record<string, RuleSetting>;
   katex?: KatexOptions;

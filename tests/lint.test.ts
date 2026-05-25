@@ -141,3 +141,22 @@ describe("phase 3 parser simulation", () => {
     expect(result.profiles["llm-output"]?.diagnostics.map((diagnostic) => diagnostic.code)).toContain("MDM013");
   });
 });
+
+describe("P2 semantic math rules", () => {
+  it("reports nested dollar delimiters inside a braced inline formula", async () => {
+    const result = await lintText("$\\text{for $x>0$}$\n");
+    expect(codes(result)).toContain("MDM017");
+  });
+
+  it("reports non-portable MathJax-style TeX primitives", async () => {
+    const result = await lintText("$$\na \\over b\n$$\n");
+    expect(codes(result)).toContain("MDM018");
+  });
+
+  it("reports references whose labels are not defined in the document", async () => {
+    const defined = await lintText("$$\nx=1\\label{eq:x}\n$$\n\nSee $\\ref{eq:x}$.\n");
+    const missing = await lintText("See $\\ref{eq:missing}$.\n");
+    expect(codes(defined)).not.toContain("MDM019");
+    expect(codes(missing)).toContain("MDM019");
+  });
+});

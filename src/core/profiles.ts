@@ -16,6 +16,9 @@ const portable: Record<string, RuleSetting> = {
   MDM013: "warning",
   MDM014: "off",
   MDM015: "off",
+  MDM017: "warning",
+  MDM018: "warning",
+  MDM019: "warning",
 };
 
 const overrides: Record<ProfileName, Record<string, RuleSetting>> = {
