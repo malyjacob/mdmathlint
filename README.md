@@ -597,7 +597,7 @@ mdmathlint-lsp
 mdml-lsp
 ```
 
-Provides LSP over stdio. Supports `textDocument/didOpen`. Configure your editor's LSP client to launch this binary for `.md` files. Currently a prototype — incremental updates (`didChange`) are not yet supported.
+Provides LSP over stdio. It supports `didOpen`, incremental/full `didChange`, `didClose`, and safe auto-fixes requested through `workspace/applyEdit` on `didSave`. Diagnostics load `.mdmathlintrc.json` / `.jsonc` from the document workspace. A minimal VS Code client is included in [`vscode-extension/`](vscode-extension/).
 
 ### Browser playground
 

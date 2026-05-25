@@ -38,6 +38,7 @@
     "action.yml",
     ".pre-commit-hooks.yaml",
     "docs",
+    "vscode-extension",
     "README.md",
     "LICENSE"
   ],

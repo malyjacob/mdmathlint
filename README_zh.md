@@ -599,7 +599,7 @@ mdmathlint-lsp
 mdml-lsp
 ```
 
-通过 stdio 提供 LSP 服务，支持 `textDocument/didOpen`。配置编辑器 LSP 客户端指向此二进制文件即可对 `.md` 文件启用实时诊断。当前为原型级别，不支持增量更新（`didChange`）。
+通过 stdio 提供 LSP 服务，支持 `didOpen`、增量/全量 `didChange`、`didClose`，并在 `didSave` 时通过 `workspace/applyEdit` 请求安全自动修复。诊断会读取文档 workspace 中的 `.mdmathlintrc.json` / `.jsonc` 配置。最小 VS Code 客户端见 [`vscode-extension/`](vscode-extension/)。
 
 ### 浏览器 Playground
 

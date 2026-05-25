@@ -7,11 +7,11 @@
 
 ## P0 — LSP：从原型到可用
 
-- [ ] `textDocument/didChange` — 增量或全量诊断，编辑器每次按键触发
-- [ ] `textDocument/didClose` — 文件关闭时发布空诊断数组
-- [ ] `textDocument/didSave` — 保存时触发 `--fix` 等效操作
-- [ ] 读取 workspace 中的 `.mdmathlintrc.json` 配置
-- [ ] VS Code 扩展（`package.json` + language server 激活配置）
+- [x] `textDocument/didChange` — 增量或全量诊断，编辑器每次按键触发
+- [x] `textDocument/didClose` — 文件关闭时发布空诊断数组
+- [x] `textDocument/didSave` — 保存时触发 `--fix` 等效操作
+- [x] 读取 workspace 中的 `.mdmathlintrc.json` 配置
+- [x] VS Code 扩展（`package.json` + language server 激活配置）
 
 ---
 

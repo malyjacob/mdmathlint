@@ -1,0 +1,33 @@
+{
+  "name": "mdmathlint-vscode",
+  "displayName": "mdmathlint",
+  "description": "Live Markdown math diagnostics powered by mdmathlint.",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "malyjacob",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "mdmathlint",
+      "properties": {
+        "mdmathlint.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path to the mdmathlint LSP server entry point."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}
