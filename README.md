@@ -2,6 +2,13 @@
 
 Markdown math lint CLI with profile-aware diagnostics and conservative autofix.
 
+## Install
+
+```bash
+npm install --save-dev mdmathlint
+npx mdmathlint README.md --profile strict
+```
+
 ## Usage
 
 ```bash
@@ -49,6 +56,39 @@ Phase 2 configuration is discovered from `.mdmathlintrc.json` or `.mdmathlintrc.
 - Internal recovery diagnostics, such as `MDM-INTERNAL-FIX`, may be emitted if automatic fixes do not stabilize within the iteration limit.
 - Phase 3 markdown-it simulations (`texmath` and `dollarmath`), optional `MDM014` parser disagreement diagnostics, and profile comparison output.
 - SARIF reporting, rule explanations, a GitHub Actions SARIF workflow, an experimental stdio LSP entry point, and a benchmark runner.
+- Phase 4 ecosystem integrations: `mdmathlint/remark-lint`, a pre-commit hook, a reusable composite Action, false-positive corpus checks, and a browser playground in `docs/playground.html`.
+
+## remark
+
+```js
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import { VFile } from "vfile";
+import remarkMathLint from "mdmathlint/remark-lint";
+
+const processor = unified().use(remarkParse).use(remarkMathLint, { profile: "strict" });
+const file = new VFile({ value: "令$x$为数列。" });
+await processor.run(processor.parse(file), file);
+console.log(file.messages);
+```
+
+## GitHub Action
+
+```yaml
+- uses: malyjacob/mdmathlint@v1
+  with:
+    files: "docs/**/*.md"
+    profile: strict
+```
+
+## Pre-commit
+
+```yaml
+- repo: https://github.com/malyjacob/mdmathlint
+  rev: v0.4.0
+  hooks:
+    - id: mdmathlint
+```
 
 ## Development
 

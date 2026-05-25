@@ -1,20 +1,47 @@
 {
   "name": "mdmathlint",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Profile-aware Markdown math linter",
   "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "markdown",
+    "math",
+    "lint",
+    "remark",
+    "katex"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "mdmathlint": "./dist/cli.js",
     "mdmathlint-lsp": "./dist/lsp.js"
   },
   "exports": {
-    ".": "./dist/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./remark-lint": {
+      "types": "./dist/remarkLint.d.ts",
+      "import": "./dist/remarkLint.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "action.yml",
+    ".pre-commit-hooks.yaml",
+    "docs",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
     "typecheck": "tsc --noEmit",
     "pretest": "npm run build",
     "test": "vitest run",
@@ -34,7 +61,8 @@
     "remark-math": "^6.0.0",
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5",
-    "unist-util-visit": "^5.0.0"
+    "unist-util-visit": "^5.0.0",
+    "vfile": "^6.0.3"
   },
   "devDependencies": {
     "@types/katex": "^0.16.7",

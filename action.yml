@@ -1,0 +1,40 @@
+name: mdmathlint
+description: Lint Markdown math portability and KaTeX syntax.
+inputs:
+  files:
+    description: Markdown files or glob to check.
+    required: false
+    default: "**/*.md"
+  profile:
+    description: Rendering profile to enforce.
+    required: false
+    default: strict
+  format:
+    description: Output format (pretty, json, or sarif).
+    required: false
+    default: pretty
+  max-warnings:
+    description: Fail after more than this number of warnings.
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Build mdmathlint action runtime
+      shell: bash
+      run: |
+        npm ci --prefix "$GITHUB_ACTION_PATH"
+        npm run --prefix "$GITHUB_ACTION_PATH" build
+    - name: Run mdmathlint
+      shell: bash
+      env:
+        INPUT_FILES: ${{ inputs.files }}
+        INPUT_PROFILE: ${{ inputs.profile }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_MAX_WARNINGS: ${{ inputs.max-warnings }}
+      run: |
+        args=("$INPUT_FILES" "--profile" "$INPUT_PROFILE" "--format" "$INPUT_FORMAT")
+        if [ -n "$INPUT_MAX_WARNINGS" ]; then
+          args+=("--max-warnings" "$INPUT_MAX_WARNINGS")
+        fi
+        node "$GITHUB_ACTION_PATH/dist/cli.js" "${args[@]}"

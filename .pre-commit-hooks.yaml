@@ -1,0 +1,7 @@
+- id: mdmathlint
+  name: mdmathlint
+  description: Check Markdown math delimiters and KaTeX syntax.
+  entry: mdmathlint
+  language: node
+  files: \.md$
+  types: [text]

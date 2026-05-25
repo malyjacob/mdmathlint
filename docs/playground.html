@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>mdmathlint playground</title>
+  <style>
+    :root { color-scheme: light dark; font: 16px system-ui, sans-serif; }
+    body { margin: 2rem auto; max-width: 960px; padding: 0 1rem; }
+    textarea { box-sizing: border-box; font: 15px ui-monospace, monospace; height: 16rem; padding: 1rem; width: 100%; }
+    button { cursor: pointer; font: inherit; margin: 1rem 0; padding: .6rem 1rem; }
+    pre { background: color-mix(in srgb, CanvasText 8%, Canvas); min-height: 7rem; padding: 1rem; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>mdmathlint playground</h1>
+  <p>This lightweight preview catches delimiter placement issues in the browser. The npm CLI performs full parser and KaTeX validation.</p>
+  <textarea id="source">令$x$为数列。
+
+所以$$x=1$$成立。</textarea>
+  <button id="check" type="button">Check delimiters</button>
+  <pre id="output"></pre>
+  <script>
+    const source = document.querySelector("#source");
+    const output = document.querySelector("#output");
+    document.querySelector("#check").addEventListener("click", () => {
+      const findings = [];
+      source.value.split("\n").forEach((line, index) => {
+        if (/\S\$\$|\$\$\S/.test(line)) findings.push(`line ${index + 1}: display delimiter should be on its own line`);
+        if (/[\p{L}\p{N}]\$[^$]+\$|\$[^$]+\$[\p{L}\p{N}]/u.test(line)) findings.push(`line ${index + 1}: inline math touches adjacent text`);
+      });
+      output.textContent = findings.length ? findings.join("\n") : "No delimiter placement findings.";
+    });
+    document.querySelector("#check").click();
+  </script>
+</body>
+</html>
