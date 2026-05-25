@@ -148,7 +148,7 @@ mdmathlint "docs/**/*.md"
 
 mdmathlint performs **three passes** over every document: (1) raw source scan — finds every `$` / `$$`; (2) Markdown parser — determines which are actual math nodes; (3) KaTeX parser — validates TeX syntax inside formulas. The three pipelines cross-validate in the rule engine.
 
-18 rules organized into five categories. Run `mdmathlint --explain <rule-id>` for full details on any rule, including bad and good examples.
+20 rules organized into five categories. Run `mdmathlint --explain <rule-id>` for full details on any rule, including bad and good examples.
 
 ### Delimiter structure — "the formula was never recognized"
 
@@ -185,7 +185,8 @@ mdmathlint performs **three passes** over every document: (1) raw source scan �
 | Rule | Default | Fixable | Detects |
 |---|---|---|---|
 | **MDM012** | error | no | KaTeX `ParseError` — missing brace, unknown command, bad nesting |
-| **MDM019** | warning | no | `\ref{...}` / `\eqref{...}` targets without a document-local `\label{...}` |
+| **MDM019** | warning | no | `\ref{...}` / `\eqref{...}` targets without a matching `\label{...}` in the checked input set |
+| **MDM021** | warning | no | Formulas over 400 characters, nested more than 12 brace levels, or using a configured macro over 20 times |
 
 ### Cross-platform — "works on GitHub, breaks elsewhere"
 
@@ -194,8 +195,11 @@ mdmathlint performs **three passes** over every document: (1) raw source scan �
 | **MDM013** | warning | no | `` $`...`$ `` backtick delimiters — only GitHub / markdown-it support them |
 | **MDM014** | off | no | Same formula recognized differently by remark, markdown-it, Pandoc, Goldmark, or Obsidian simulations |
 | **MDM018** | warning | no | Renderer-sensitive TeX primitives such as `\choose`, `\over`, and `\atop` |
+| **MDM020** | warning | no | MathJax-specific extension commands such as `\require`, `\bbox`, `\cssId`, or `\class` |
 
 When `MDM014` is enabled, lightweight Pandoc, Goldmark, and Obsidian delimiter adapters join the existing remark and markdown-it comparisons. These model recognition rules for portability checks; they do not embed the full target rendering engines.
+
+When multiple Markdown files are checked in one command, `MDM019` resolves labels across the entire input set, so a `\ref{...}` in one chapter can target a `\label{...}` defined in another.
 
 ### Before / after
 
@@ -482,6 +486,9 @@ mdmathlint "docs/**/*.md" --profile strict
 
 # multiple files
 mdmathlint README.md CONTRIBUTING.md CHANGELOG.md --profile github
+
+# cross-file \label / \ref checking is applied across this input set
+mdmathlint "chapters/**/*.md"
 
 # keep checking matching files while editing
 mdmathlint "docs/**/*.md" --watch

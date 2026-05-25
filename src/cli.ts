@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { Command, InvalidArgumentError } from "commander";
 import fg from "fast-glob";
-import { findConfig, lintText, profileDiffText, type LintOptions, type MarkdownItSimulation, type ProfileName } from "./index.js";
+import { findConfig, lintText, profileDiffText, resolveCrossFileReferences, type LintOptions, type MarkdownItSimulation, type ProfileName } from "./index.js";
 import { reportFixDiff, reportJson, reportPretty, reportProfileDiffJson, reportProfileDiffPretty, reportSarif } from "./diagnostics/reporters.js";
 import { initializeConfig } from "./init.js";
 import { explainRule } from "./rules/catalog.js";
@@ -116,7 +116,7 @@ async function main(): Promise<number> {
     return comparisons.some((comparison) => profiles.some((profile) => (comparison.profiles[profile]?.stats.errorCount ?? 0) > 0)) ? 1 : 0;
   }
   async function lintInputs(currentInputs: Array<{ path: string; text: string; writable: boolean }>) {
-    const results = await Promise.all(currentInputs.map((input) => lintText(input.text, { ...lintOptions, filePath: input.path })));
+    const results = resolveCrossFileReferences(await Promise.all(currentInputs.map((input) => lintText(input.text, { ...lintOptions, filePath: input.path }))));
     if (options.fix && !options.fixDryRun) {
       for (let index = 0; index < currentInputs.length; index += 1) {
         if (currentInputs[index].writable && results[index].fixedText !== undefined) {

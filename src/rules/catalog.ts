@@ -37,6 +37,8 @@ const rules: Record<string, RuleExplanation> = {
   MDM017: { name: "nested-dollar-delimiter", defaultSeverity: "warning", fixable: false, summary: "An inline formula appears to contain nested dollar delimiters.", why: "Dollar-delimited math cannot safely contain another dollar-delimited formula." },
   MDM018: { name: "mathjax-only-primitive", defaultSeverity: "warning", fixable: false, summary: "Formula uses a TeX primitive with inconsistent KaTeX and MathJax support.", why: "Renderer-specific primitives make documents fail when moved between math engines." },
   MDM019: { name: "undefined-label-reference", defaultSeverity: "warning", fixable: false, summary: "A formula references a label not defined in this document.", why: "Broken equation references render as missing or unresolved links." },
+  MDM020: { name: "mathjax-extension-command", defaultSeverity: "warning", fixable: false, summary: "Formula uses a MathJax-specific extension command.", why: "MathJax extension commands often do not render in KaTeX-based sites." },
+  MDM021: { name: "formula-complexity", defaultSeverity: "warning", fixable: false, summary: "Formula is unusually long or structurally complex.", why: "Very complex formulas are hard to review and may exceed renderer limits." },
 };
 
 export function explainRule(ruleId: string): string | undefined {

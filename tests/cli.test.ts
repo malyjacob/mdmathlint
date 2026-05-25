@@ -169,4 +169,14 @@ describe("CLI", () => {
       child.kill();
     }
   });
+
+  it("resolves references against labels in another input file", () => {
+    const directory = mkdtempSync(join(tmpdir(), "mdmathlint-cross-ref-"));
+    const definition = join(directory, "definition.md");
+    const reference = join(directory, "reference.md");
+    writeFileSync(definition, "$$\nx=1\\label{eq:x}\n$$\n");
+    writeFileSync(reference, "See $\\ref{eq:x}$.\n");
+    const result = spawnSync(process.execPath, [cli, definition, reference, "--format", "json"], { encoding: "utf8" });
+    expect(result.stdout).not.toContain("\"MDM019\"");
+  });
 });

@@ -67,6 +67,34 @@ function result(filePath: string, sourceText: string, diagnostics: Diagnostic[],
   };
 }
 
+function mathLabels(text: string, filePath: string): Set<string> {
+  const document = createDocument(text, filePath);
+  const parsed = parseMarkdown(document);
+  const scan = scanSource(document, parsed.linkDestinationRanges);
+  const contents = [
+    ...scan.pairs.map((pair) => pair.content),
+    ...scan.bracketPairs.map((pair) => pair.content),
+  ];
+  const labels = new Set<string>();
+  contents.forEach((content) => {
+    for (const match of content.matchAll(/\\label\s*\{([^{}]+)\}/g)) labels.add(match[1]);
+  });
+  return labels;
+}
+
+export function resolveCrossFileReferences(results: LintResult[]): LintResult[] {
+  if (results.length < 2) return results;
+  const labels = new Set(results.flatMap((item) => [...mathLabels(item.sourceText, item.filePath)]));
+  return results.map((item) => {
+    const diagnostics = item.diagnostics.filter((diagnostic) => {
+      if (diagnostic.code !== "MDM019") return true;
+      const label = diagnostic.message.match(/^reference to undefined label "([^"]+)"$/)?.[1];
+      return !label || !labels.has(label);
+    });
+    return result(item.filePath, item.sourceText, diagnostics, item.fixedText, item.originalText);
+  });
+}
+
 export async function lintText(text: string, options: LintOptions = {}): Promise<LintResult> {
   const filePath = options.filePath ?? "<text>";
   if (!options.fix) return result(filePath, text, lintOnce(text, options));
@@ -94,7 +122,7 @@ export async function lintText(text: string, options: LintOptions = {}): Promise
 }
 
 export async function lintFiles(files: string[], options: LintOptions = {}): Promise<LintResult[]> {
-  return Promise.all(files.map(async (filePath) => lintText(await readFile(filePath, "utf8"), { ...options, filePath })));
+  return resolveCrossFileReferences(await Promise.all(files.map(async (filePath) => lintText(await readFile(filePath, "utf8"), { ...options, filePath }))));
 }
 
 export async function profileDiffText(

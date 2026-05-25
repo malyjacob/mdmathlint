@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createDocument } from "../src/core/document.js";
-import { lintText, profileDiffText } from "../src/index.js";
+import { lintFiles, lintText, profileDiffText } from "../src/index.js";
 import { parsePlatformMath } from "../src/parser/platformAdapters.js";
 import { scanSource } from "../src/scanner/sourceScanner.js";
 
@@ -176,5 +179,32 @@ describe("P3 platform parser adapters", () => {
   it("includes the extended adapter matrix in MDM014 comparisons", async () => {
     const result = await lintText("Use $x$ here.\n", { rules: { MDM014: "warning" } });
     expect(codes(result)).toContain("MDM014");
+  });
+});
+
+describe("P4 advanced semantic checks", () => {
+  it("reports MathJax-specific extension commands", async () => {
+    const result = await lintText("$\\require{physics} x$\n");
+    expect(codes(result)).toContain("MDM020");
+  });
+
+  it("reports long, deeply nested, or macro-heavy formulas", async () => {
+    const long = await lintText(`$${"x+".repeat(210)}x$\n`);
+    const nested = await lintText(`$x+${"{".repeat(13)}y${"}".repeat(13)}$\n`);
+    const macros = await lintText(`$${"\\RR ".repeat(21)}$`, { katex: { macros: { "\\RR": "\\mathbb{R}" } } });
+    expect(codes(long)).toContain("MDM021");
+    expect(codes(nested)).toContain("MDM021");
+    expect(codes(macros)).toContain("MDM021");
+  });
+
+  it("resolves labels across a batch of Markdown files", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "mdmathlint-cross-ref-"));
+    const definition = join(directory, "definition.md");
+    const reference = join(directory, "reference.md");
+    await writeFile(definition, "$$\nx=1\\label{eq:x}\n$$\n");
+    await writeFile(reference, "See $\\ref{eq:x}$ and $\\ref{eq:missing}$.\n");
+    const results = await lintFiles([definition, reference]);
+    const unresolved = results.flatMap((item) => item.diagnostics.filter((diagnostic) => diagnostic.code === "MDM019"));
+    expect(unresolved.map((diagnostic) => diagnostic.message)).toEqual(["reference to undefined label \"eq:missing\""]);
   });
 });

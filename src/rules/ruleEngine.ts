@@ -26,6 +26,10 @@ interface FormulaContent {
   offset: number;
 }
 
+const LONG_FORMULA_LENGTH = 400;
+const MAX_BRACE_NESTING = 12;
+const MAX_MACRO_USES = 20;
+
 function intersects(left: Diagnostic, right: Diagnostic): boolean {
   return left.range.start.offset <= right.range.end.offset && right.range.start.offset <= left.range.end.offset;
 }
@@ -121,6 +125,32 @@ function formulaContents(scan: ScanResult): FormulaContent[] {
   ];
 }
 
+function maxBraceNesting(text: string): number {
+  let depth = 0;
+  let maximum = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === "\\" && ["{", "}"].includes(text[index + 1])) {
+      index += 1;
+      continue;
+    }
+    if (text[index] === "{") {
+      depth += 1;
+      maximum = Math.max(maximum, depth);
+    } else if (text[index] === "}") {
+      depth = Math.max(0, depth - 1);
+    }
+  }
+  return maximum;
+}
+
+function macroUses(text: string, macros: Record<string, string> | undefined): number {
+  if (!macros) return 0;
+  return Object.keys(macros).reduce((total, macro) => {
+    const escaped = macro.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return total + (text.match(new RegExp(`${escaped}(?![A-Za-z])`, "g"))?.length ?? 0);
+  }, 0);
+}
+
 export function runRules(
   document: SourceDocument,
   scan: ScanResult,
@@ -159,6 +189,35 @@ export function runRules(
         `TeX primitive ${match[0]} is not portable between KaTeX and MathJax`,
         rangeAt(document, offset, offset + match[0].length),
         "Prefer \\binom, \\frac, or another portable LaTeX command.",
+      ));
+    }
+  });
+
+  formulas.forEach((formula) => {
+    for (const match of formula.content.matchAll(/\\(?:require|bbox|cssId|class)\b/g)) {
+      const offset = formula.offset + (match.index ?? 0);
+      add(diagnostics, diagnostic(
+        settings,
+        "MDM020",
+        `MathJax-specific command ${match[0]} may not render in KaTeX`,
+        rangeAt(document, offset, offset + match[0].length),
+        "Prefer portable LaTeX or confirm that the destination renderer supports MathJax extensions.",
+      ));
+    }
+    const nesting = maxBraceNesting(formula.content);
+    const expansions = macroUses(formula.content, options.katex.macros);
+    const reasons = [
+      formula.content.length > LONG_FORMULA_LENGTH ? `${formula.content.length} characters` : undefined,
+      nesting > MAX_BRACE_NESTING ? `brace nesting depth ${nesting}` : undefined,
+      expansions > MAX_MACRO_USES ? `${expansions} custom macro uses` : undefined,
+    ].filter((reason): reason is string => Boolean(reason));
+    if (reasons.length) {
+      add(diagnostics, diagnostic(
+        settings,
+        "MDM021",
+        `complex formula (${reasons.join(", ")})`,
+        rangeAt(document, formula.offset, formula.offset + formula.content.length),
+        "Consider splitting the formula or simplifying deeply nested and repeated macro constructs.",
       ));
     }
   });
