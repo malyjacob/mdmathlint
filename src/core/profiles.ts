@@ -23,7 +23,7 @@ const overrides: Record<ProfileName, Record<string, RuleSetting>> = {
   strict: { MDM003: "error", MDM005: "warning", MDM015: "warning", MDM013: "error" },
   github: { MDM005: "info", MDM013: "off" },
   "llm-output": { MDM005: "warning", MDM015: "error", MDM013: "error" },
-  "markdown-it": { MDM013: "off" },
+  "markdown-it": { MDM013: "off", MDM014: "warning", MDM015: "warning" },
 };
 
 export function resolveRules(

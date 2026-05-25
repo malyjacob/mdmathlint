@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lintText } from "../src/index.js";
+import { lintText, profileDiffText } from "../src/index.js";
 
 function codes(result: Awaited<ReturnType<typeof lintText>>): string[] {
   return result.diagnostics.map((diagnostic) => diagnostic.code);
@@ -33,6 +33,28 @@ describe("core lint rules", () => {
     expect(codes(result)).toContain("MDM007");
     expect(codes(result)).not.toContain("MDM001");
   });
+
+  it("recognizes formulas in headings and link text", async () => {
+    const heading = await lintText("# $E=mc^2$ is a heading\n");
+    const link = await lintText("Read [$x^2$](https://example.com).\n");
+    expect(heading.diagnostics).toEqual([]);
+    expect(link.diagnostics).toEqual([]);
+  });
+
+  it("ignores dollars protected by HTML comments", async () => {
+    const result = await lintText("<!-- Price $5 and $x$ -->\n");
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  it("ignores dollar identifiers inside link destinations and shell variables", async () => {
+    const result = await lintText("Install $PACKAGE; see [docs](https://example.com?$filter=x).\n");
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  it("treats an adjacent empty display delimiter as unclosed", async () => {
+    const result = await lintText("$$$$\n");
+    expect(codes(result)).toContain("MDM002");
+  });
 });
 
 describe("phase 2 profiles and context rules", () => {
@@ -56,6 +78,16 @@ describe("phase 2 profiles and context rules", () => {
     const result = await lintText("An expression $x +\ny$ continues.\n");
     expect(codes(result)).toContain("MDM011");
   });
+
+  it("reports missing separation for consecutive display blocks", async () => {
+    const result = await lintText("$$\nx\n$$\n$$\ny\n$$\n");
+    expect(codes(result)).toContain("MDM004");
+  });
+
+  it("does not treat an ordinary pipe expression as a table cell", async () => {
+    const result = await lintText("Conditional: left | right\n\n$$\nx\n$$\n");
+    expect(codes(result)).not.toContain("MDM008");
+  });
 });
 
 describe("fix pipeline", () => {
@@ -73,5 +105,39 @@ describe("fix pipeline", () => {
     const withMacro = await lintText("$\\RR$", { katex: { macros: { "\\RR": "\\mathbb{R}" } } });
     expect(codes(withoutMacro)).toContain("MDM012");
     expect(codes(withMacro)).not.toContain("MDM012");
+  });
+});
+
+describe("currency detection", () => {
+  it("only inspects unmatched single dollar tokens", async () => {
+    const literal = await lintText("The price is $5.\n");
+    const pairedMath = await lintText("The value is $5$.\n");
+    expect(codes(literal)).toContain("MDM006");
+    expect(codes(pairedMath)).not.toContain("MDM006");
+  });
+});
+
+describe("phase 3 parser simulation", () => {
+  it("uses markdown-it recognition for the markdown-it profile", async () => {
+    const result = await lintText("所以$$x=1$$成立。\n", {
+      profile: "markdown-it",
+      markdownItSimulation: "dollarmath",
+    });
+    expect(codes(result)).not.toContain("MDM015");
+    expect(codes(result)).toContain("MDM014");
+  });
+
+  it("validates formulae recognized only by markdown-it", async () => {
+    const result = await lintText("所以$$\\notACommand$$成立。\n", {
+      profile: "markdown-it",
+      markdownItSimulation: "dollarmath",
+    });
+    expect(codes(result)).toContain("MDM012");
+  });
+
+  it("compares diagnostics between profiles", async () => {
+    const result = await profileDiffText("Try $`x+1`$ here.\n", ["github", "llm-output"]);
+    expect(result.profiles.github?.diagnostics.map((diagnostic) => diagnostic.code)).not.toContain("MDM013");
+    expect(result.profiles["llm-output"]?.diagnostics.map((diagnostic) => diagnostic.code)).toContain("MDM013");
   });
 });

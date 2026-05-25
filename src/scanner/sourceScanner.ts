@@ -44,7 +44,7 @@ export interface ScanResult {
   githubDelimiterRanges: Range[];
 }
 
-function escaped(text: string, offset: number): boolean {
+function isEscaped(text: string, offset: number): boolean {
   let slashes = 0;
   for (let index = offset - 1; index >= 0 && text[index] === "\\"; index -= 1) slashes += 1;
   return slashes % 2 === 1;
@@ -52,10 +52,13 @@ function escaped(text: string, offset: number): boolean {
 
 function isShellVariable(text: string, offset: number): boolean {
   const tail = text.slice(offset);
-  if (/^\$\{[^}\n]+\}/.test(tail) || /^\$[0-9#@?*!$-]/.test(tail)) return true;
+  if (/^\$\{[^}\n]+\}/.test(tail) || /^\$[#@?*!$-]/.test(tail)) return true;
   const variable = tail.match(/^\$([A-Za-z_][A-Za-z0-9_]*)/)?.[1];
   if (!variable) return false;
-  if (/^[A-Z_][A-Z0-9_]*$/.test(variable)) return true;
+  const next = text[offset + variable.length + 1];
+  if (/^[A-Z_][A-Z0-9_]*$/.test(variable)) {
+    return !next || !"$=+-*/^{}()[\\]".includes(next);
+  }
   return variable.includes("_") && variable.length > 1;
 }
 
@@ -84,7 +87,7 @@ function protectedOffsets(document: SourceDocument): { protectedSet: Set<number>
     if (fence) {
       for (let i = 0; i < line.length; i += 1) {
         protectedSet.add(start + i);
-        if (fence.markdown && line[i] === "$" && !escaped(line, i)) codeSet.add(start + i);
+        if (fence.markdown && line[i] === "$" && !isEscaped(line, i)) codeSet.add(start + i);
       }
       return;
     }
@@ -111,12 +114,16 @@ function protectedOffsets(document: SourceDocument): { protectedSet: Set<number>
   return { protectedSet, codeSet };
 }
 
-export function scanSource(document: SourceDocument): ScanResult {
+export function scanSource(document: SourceDocument, excludedRanges: Range[] = []): ScanResult {
   const { protectedSet, codeSet } = protectedOffsets(document);
+  excludedRanges.forEach((range) => {
+    for (let offset = range.start.offset; offset < range.end.offset; offset += 1) protectedSet.add(offset);
+  });
   const tokens: RawDollarToken[] = [];
   const bracketTokens: RawBracketToken[] = [];
   const githubDelimiterRanges: Range[] = [];
   for (const match of document.text.matchAll(/\$`[^`\n]+`\$/g)) {
+    if (protectedSet.has(match.index!) || protectedSet.has(match.index! + match[0].length - 1)) continue;
     githubDelimiterRanges.push(rangeAt(document, match.index!, match.index! + match[0].length));
     for (let i = match.index!; i < match.index! + match[0].length; i += 1) protectedSet.add(i);
   }
@@ -124,7 +131,7 @@ export function scanSource(document: SourceDocument): ScanResult {
     if (
       document.text[offset] === "\\" &&
       !protectedSet.has(offset) &&
-      !escaped(document.text, offset) &&
+      !isEscaped(document.text, offset) &&
       ["(", ")", "[", "]"].includes(document.text[offset + 1])
     ) {
       const char = document.text[offset + 1];
@@ -138,7 +145,7 @@ export function scanSource(document: SourceDocument): ScanResult {
       offset += 1;
       continue;
     }
-    if (document.text[offset] !== "$" || protectedSet.has(offset) || escaped(document.text, offset)) continue;
+    if (document.text[offset] !== "$" || protectedSet.has(offset) || isEscaped(document.text, offset)) continue;
     const double = document.text[offset + 1] === "$" && !protectedSet.has(offset + 1);
     if (!double && isShellVariable(document.text, offset)) continue;
     const length = double ? 2 : 1;
@@ -157,6 +164,10 @@ export function scanSource(document: SourceDocument): ScanResult {
     const open = stack.pop();
     if (!open) {
       stack.push(token);
+      return;
+    }
+    if (token.kind === "double" && open.endOffset === token.offset) {
+      stack.push(open);
       return;
     }
     const kind = token.kind === "double" ? "display" : "inline";

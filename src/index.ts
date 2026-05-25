@@ -2,10 +2,11 @@ import { readFile } from "node:fs/promises";
 import { createDocument } from "./core/document.js";
 import { resolveRules } from "./core/profiles.js";
 import { applyFixes, collectFixes } from "./fixer/fixPipeline.js";
-import { parseMathSpans } from "./parser/remarkAdapter.js";
+import { parseMarkdownItMath } from "./parser/markdownItAdapter.js";
+import { parseMarkdown } from "./parser/remarkAdapter.js";
 import { runRules } from "./rules/ruleEngine.js";
 import { scanSource } from "./scanner/sourceScanner.js";
-import type { Diagnostic, LintOptions, LintResult } from "./types.js";
+import type { Diagnostic, LintOptions, LintResult, ProfileDiffResult, ProfileName } from "./types.js";
 
 export type {
   ConfigFile,
@@ -14,6 +15,8 @@ export type {
   KatexOptions,
   LintOptions,
   LintResult,
+  MarkdownItSimulation,
+  ProfileDiffResult,
   ProfileName,
   RuleSetting,
 } from "./types.js";
@@ -22,9 +25,20 @@ export { findConfig } from "./config/loadConfig.js";
 function lintOnce(text: string, options: LintOptions): Diagnostic[] {
   const document = createDocument(text, options.filePath);
   const profile = options.profile ?? "portable";
-  return runRules(document, scanSource(document), parseMathSpans(document), {
+  const settings = resolveRules(profile, options.rules);
+  const parsed = parseMarkdown(document);
+  const scan = scanSource(document, parsed.linkDestinationRanges);
+  const needsMarkdownIt = profile === "markdown-it" || settings.MDM014 !== "off";
+  const markdownIt = needsMarkdownIt
+    ? {
+        texmath: parseMarkdownItMath(document, scan.pairs, "texmath"),
+        dollarmath: parseMarkdownItMath(document, scan.pairs, "dollarmath"),
+        selected: parseMarkdownItMath(document, scan.pairs, options.markdownItSimulation ?? "dollarmath"),
+      }
+    : undefined;
+  return runRules(document, scan, parsed.mathSpans, parsed.tableRanges, markdownIt, {
     profile,
-    settings: resolveRules(profile, options.rules),
+    settings,
     katex: options.katex ?? {},
     fixOptions: {
       inlineSpacing: options.fixOptions?.inlineSpacing ?? true,
@@ -63,7 +77,7 @@ export async function lintText(text: string, options: LintOptions = {}): Promise
   }
   const diagnostics = lintOnce(current, options);
   diagnostics.push({
-    code: "MDM-FIX",
+    code: "MDM-INTERNAL-FIX",
     severity: "warning",
     message: "fix iteration limit reached; some fixes may remain unapplied",
     range: createDocument(current, filePath).text.length
@@ -75,4 +89,14 @@ export async function lintText(text: string, options: LintOptions = {}): Promise
 
 export async function lintFiles(files: string[], options: LintOptions = {}): Promise<LintResult[]> {
   return Promise.all(files.map(async (filePath) => lintText(await readFile(filePath, "utf8"), { ...options, filePath })));
+}
+
+export async function profileDiffText(
+  text: string,
+  profiles: ProfileName[],
+  options: Omit<LintOptions, "profile"> = {},
+): Promise<ProfileDiffResult> {
+  const filePath = options.filePath ?? "<text>";
+  const entries = await Promise.all(profiles.map(async (profile) => [profile, await lintText(text, { ...options, profile })] as const));
+  return { filePath, profiles: Object.fromEntries(entries) };
 }

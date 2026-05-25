@@ -1,5 +1,6 @@
 import { positionAt, rangeAt, type SourceDocument } from "../core/document.js";
 import { safeKatexCheck } from "../math/safeKatexCheck.js";
+import type { MarkdownItMathSpan } from "../parser/markdownItAdapter.js";
 import type { ParsedMathSpan } from "../parser/remarkAdapter.js";
 import type { RawDollarPair, ScanResult } from "../scanner/sourceScanner.js";
 import type { Diagnostic, Fix, KatexOptions, ProfileName, RuleSetting, Severity } from "../types.js";
@@ -9,6 +10,12 @@ interface EngineOptions {
   settings: Record<string, RuleSetting>;
   katex: KatexOptions;
   fixOptions: { inlineSpacing: boolean; displayOwnLine: boolean; currencyDollar: boolean };
+}
+
+interface ParserComparison {
+  selected: MarkdownItMathSpan[];
+  texmath: MarkdownItMathSpan[];
+  dollarmath: MarkdownItMathSpan[];
 }
 
 function intersects(left: Diagnostic, right: Diagnostic): boolean {
@@ -90,6 +97,8 @@ export function runRules(
   document: SourceDocument,
   scan: ScanResult,
   parsed: ParsedMathSpan[],
+  tableRanges: Diagnostic["range"][],
+  markdownIt: ParserComparison | undefined,
   options: EngineOptions,
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
@@ -104,7 +113,7 @@ export function runRules(
     add(diagnostics, diagnostic(settings, code, `unclosed ${token.kind} math delimiter`, token.range, "Close the delimiter or escape a literal delimiter."));
   });
 
-  scan.tokens.forEach((token) => {
+  scan.unmatched.forEach((token) => {
     if (token.kind !== "single" || !/^\$\d+(?:,\d{3})*(?:\.\d+)?(?:\b|$)/.test(document.text.slice(token.offset))) return;
     const prior = document.text.slice(0, token.offset).match(/\S(?=\s*$)/)?.[0];
     if (prior && /[A-Z]/.test(prior)) return;
@@ -119,9 +128,18 @@ export function runRules(
   });
 
   scan.pairs.forEach((pair) => {
-    const parsedPair = recognized(pair, parsed);
+    const remarkRecognized = recognized(pair, parsed);
+    const markdownItRecognized = markdownIt?.selected.some((span) => span.pairId === pair.id) ?? false;
+    const parsedPair = options.profile === "markdown-it" ? markdownItRecognized : remarkRecognized;
     if (!parsedPair) {
       add(diagnostics, diagnostic(settings, "MDM015", "raw math delimiter was not recognized by the Markdown parser", pair.range, "Use portable math delimiter placement.", undefined, pair.id));
+    }
+    if (markdownIt) {
+      const texmathRecognized = markdownIt.texmath.some((span) => span.pairId === pair.id);
+      const dollarmathRecognized = markdownIt.dollarmath.some((span) => span.pairId === pair.id);
+      if (new Set([remarkRecognized, texmathRecognized, dollarmathRecognized]).size > 1) {
+        add(diagnostics, diagnostic(settings, "MDM014", "math delimiter is interpreted differently by Markdown parsers", pair.range, "Compare the target rendering profile before publishing.", undefined, pair.id));
+      }
     }
     if (pair.kind === "display") {
       const openOwn = ownLine(document, pair.open.offset, 2);
@@ -134,7 +152,9 @@ export function runRules(
         if (fixes.length) add(diagnostics, diagnostic(settings, "MDM004", "display math block should be separated by blank lines", pair.range, "Add blank lines around display math.", fixes, pair.id));
       }
       const involvedLines = document.lines.slice(pair.open.range.start.line - 1, pair.close.range.start.line);
-      if (involvedLines.some((line) => line.includes("|"))) {
+      if (tableRanges.some((range) =>
+        range.start.offset <= pair.range.start.offset && range.end.offset >= pair.range.end.offset,
+      )) {
         add(diagnostics, diagnostic(settings, "MDM008", "display math inside a GFM table is not portable", pair.range, "Prefer inline math inside table cells.", undefined, pair.id));
       }
       let listIndex = pair.open.range.start.line - 2;
@@ -223,6 +243,31 @@ export function runRules(
       spanId: span.id,
     });
   });
+  if (options.profile === "markdown-it" && markdownIt) {
+    markdownIt.selected.forEach((span) => {
+      const checkedByRemark = parsed.some((parsedSpan) =>
+        parsedSpan.kind === span.kind &&
+        parsedSpan.range.start.offset === span.range.start.offset &&
+        parsedSpan.range.end.offset === span.range.end.offset,
+      );
+      if (checkedByRemark || settings.MDM012 === "off") return;
+      const result = safeKatexCheck(span.content, span.kind === "display", options.katex);
+      if (result.ok) return;
+      const delimiterLength = span.kind === "display" ? 2 : 1;
+      const contentOffset = span.range.start.offset + delimiterLength;
+      const range = result.position === undefined
+        ? rangeAt(document, contentOffset, span.range.end.offset - delimiterLength)
+        : rangeAt(document, contentOffset + result.position, contentOffset + result.position + 1);
+      diagnostics.push({
+        code: "MDM012",
+        severity: result.tooLong || result.internalError ? "info" : settings.MDM012,
+        message: result.message,
+        range,
+        help: result.tooLong ? "Split very large formulae before validation." : "Correct the TeX syntax accepted by KaTeX.",
+        spanId: span.pairId,
+      });
+    });
+  }
 
   return applySuppression(diagnostics);
 }

@@ -1,10 +1,11 @@
 {
   "name": "mdmathlint",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Profile-aware Markdown math linter",
   "type": "module",
   "bin": {
-    "mdmathlint": "./dist/cli.js"
+    "mdmathlint": "./dist/cli.js",
+    "mdmathlint-lsp": "./dist/lsp.js"
   },
   "exports": {
     ".": "./dist/index.js"
@@ -17,13 +18,17 @@
     "typecheck": "tsc --noEmit",
     "pretest": "npm run build",
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "benchmark": "node dist/benchmark.js"
   },
   "dependencies": {
     "commander": "^14.0.0",
     "fast-glob": "^3.3.3",
     "jsonc-parser": "^3.3.1",
     "katex": "^0.16.22",
+    "markdown-it": "^13.0.2",
+    "markdown-it-dollarmath": "^0.5.0",
+    "markdown-it-texmath": "^1.0.0",
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
@@ -33,6 +38,7 @@
   },
   "devDependencies": {
     "@types/katex": "^0.16.7",
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.0.0",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"

@@ -1,6 +1,7 @@
 export type Severity = "error" | "warning" | "info";
 export type RuleSetting = Severity | "off";
 export type ProfileName = "portable" | "strict" | "github" | "llm-output" | "markdown-it";
+export type MarkdownItSimulation = "texmath" | "dollarmath";
 
 export interface Position {
   line: number;
@@ -48,6 +49,7 @@ export interface LintOptions {
   katex?: KatexOptions;
   fix?: boolean;
   fixOptions?: FixOptions;
+  markdownItSimulation?: MarkdownItSimulation;
 }
 
 export interface LintResult {
@@ -66,4 +68,9 @@ export interface ConfigFile {
   rules?: Record<string, RuleSetting>;
   katex?: KatexOptions;
   fix?: FixOptions;
+}
+
+export interface ProfileDiffResult {
+  filePath: string;
+  profiles: Partial<Record<ProfileName, LintResult>>;
 }

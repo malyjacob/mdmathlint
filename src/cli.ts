@@ -4,8 +4,9 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { Command, InvalidArgumentError } from "commander";
 import fg from "fast-glob";
-import { findConfig, lintText, type LintOptions, type ProfileName } from "./index.js";
-import { reportJson, reportPretty } from "./diagnostics/reporters.js";
+import { findConfig, lintText, profileDiffText, type LintOptions, type MarkdownItSimulation, type ProfileName } from "./index.js";
+import { reportJson, reportPretty, reportProfileDiffJson, reportProfileDiffPretty, reportSarif } from "./diagnostics/reporters.js";
+import { explainRule } from "./rules/catalog.js";
 
 function integer(value: string): number {
   const parsed = Number.parseInt(value, 10);
@@ -25,12 +26,14 @@ const command = new Command()
   .option("--stdin", "read Markdown from stdin")
   .option("--stdin-filename <name>", "virtual filename for stdin diagnostics", "<stdin>")
   .option("--profile <name>", "portable|strict|github|llm-output|markdown-it")
+  .option("--profile-diff <profiles>", "compare comma-separated profiles")
+  .option("--markdown-it-simulation <name>", "texmath|dollarmath", "dollarmath")
   .option("--config <path>", "configuration file path")
-  .option("--format <format>", "pretty|json", "pretty")
+  .option("--format <format>", "pretty|json|sarif", "pretty")
   .option("--fix", "apply safe fixes")
   .option("--fix-dry-run", "calculate fixes without writing files")
-  .option("--max-warnings <n>", "fail if warnings exceed n", integer)
-  .option("--no-color", "disable colored output");
+  .option("--explain <rule-id>", "print a rule explanation")
+  .option("--max-warnings <n>", "fail if warnings exceed n", integer);
 
 async function main(): Promise<number> {
   command.parse();
@@ -38,13 +41,25 @@ async function main(): Promise<number> {
     stdin?: boolean;
     stdinFilename: string;
     profile?: ProfileName;
+    profileDiff?: string;
+    markdownItSimulation?: MarkdownItSimulation;
     config?: string;
-    format: "pretty" | "json";
+    format: "pretty" | "json" | "sarif";
     fix?: boolean;
     fixDryRun?: boolean;
+    explain?: string;
     maxWarnings?: number;
   }>();
-  if (!["pretty", "json"].includes(options.format)) throw new Error(`Unsupported format: ${options.format}`);
+  if (options.explain) {
+    const explanation = explainRule(options.explain);
+    if (!explanation) throw new Error(`Unknown rule: ${options.explain}`);
+    process.stdout.write(`${explanation}\n`);
+    return 0;
+  }
+  if (!["pretty", "json", "sarif"].includes(options.format)) throw new Error(`Unsupported format: ${options.format}`);
+  if (options.markdownItSimulation && !["texmath", "dollarmath"].includes(options.markdownItSimulation)) {
+    throw new Error(`Unsupported markdown-it simulation: ${options.markdownItSimulation}`);
+  }
   const found = findConfig(process.cwd(), options.config);
   const lintOptions: LintOptions = {
     profile: options.profile ?? found.config.profile ?? "portable",
@@ -52,6 +67,7 @@ async function main(): Promise<number> {
     katex: found.config.katex,
     fixOptions: found.config.fix,
     fix: Boolean(options.fix || options.fixDryRun),
+    markdownItSimulation: options.markdownItSimulation,
   };
   const inputs: Array<{ path: string; text: string; writable: boolean }> = [];
   if (options.stdin) inputs.push({ path: options.stdinFilename, text: await stdin(), writable: false });
@@ -64,6 +80,20 @@ async function main(): Promise<number> {
   }
   for (const path of paths) inputs.push({ path, text: await readFile(path, "utf8"), writable: true });
   if (inputs.length === 0) throw new Error("No input files. Provide Markdown files or --stdin.");
+  if (options.profileDiff) {
+    if (options.format === "sarif") throw new Error("SARIF output is not available for profile comparisons.");
+    const profiles = options.profileDiff.split(",").map((profile) => profile.trim()).filter(Boolean) as ProfileName[];
+    const allowed = new Set<ProfileName>(["portable", "strict", "github", "llm-output", "markdown-it"]);
+    if (profiles.length < 2 || profiles.some((profile) => !allowed.has(profile))) {
+      throw new Error("Profile diff expects at least two valid comma-separated profiles.");
+    }
+    const comparisons = await Promise.all(inputs.map((input) => profileDiffText(input.text, profiles, { ...lintOptions, filePath: input.path })));
+    const output = options.format === "json"
+      ? reportProfileDiffJson(comparisons, profiles)
+      : reportProfileDiffPretty(comparisons, profiles);
+    process.stdout.write(`${output}\n`);
+    return comparisons.some((comparison) => profiles.some((profile) => (comparison.profiles[profile]?.stats.errorCount ?? 0) > 0)) ? 1 : 0;
+  }
   const results = await Promise.all(inputs.map((input) => lintText(input.text, { ...lintOptions, filePath: input.path })));
   if (options.fix && !options.fixDryRun) {
     for (let index = 0; index < inputs.length; index += 1) {
@@ -72,7 +102,7 @@ async function main(): Promise<number> {
       }
     }
   }
-  const output = options.format === "json" ? reportJson(results) : reportPretty(results);
+  const output = options.format === "json" ? reportJson(results) : options.format === "sarif" ? reportSarif(results) : reportPretty(results);
   const preview = options.fixDryRun && options.format === "pretty"
     ? results.filter((result) => result.fixedText !== undefined).map((result) => `fix preview: ${result.filePath} would be modified`).join("\n")
     : "";
