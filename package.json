@@ -1,6 +1,6 @@
 {
   "name": "mdmathlint",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "Profile-aware Markdown math linter",
   "type": "module",
   "license": "MIT",

@@ -595,7 +595,7 @@ mdmathlint "content/**/*.md" --format json --max-warnings 0
 
 ```yaml
 - repo: https://github.com/malyjacob/mdmathlint
-  rev: v0.5.0
+  rev: v1.0.0
   hooks:
     - id: mdmathlint
 ```
