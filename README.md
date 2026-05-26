@@ -649,7 +649,7 @@ Open [`docs/playground.html`](docs/playground.html) in any browser - a static pa
 
 MDM015 is the rule that separates mdmathlint from every KaTeX wrapper — it finds "the parser never recognized your formula at all." It ships `off` because:
 
-- Any non-math text with a literal `$` can trigger it (e.g. "this service costs $5/month")
+- Any non-math text with a literal `$` can trigger it (e.g. "this service costs \$5/month")
 - It needs the raw scanner's shell-variable filtering, escape handling, and link-destination exclusion all working before it's safe to enable
 
 **Those filters were implemented and verified in Phase 2.** You should turn MDM015 on:

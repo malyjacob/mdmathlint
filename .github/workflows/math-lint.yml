@@ -12,8 +12,8 @@ jobs:
   mdmathlint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -22,7 +22,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: node dist/cli.js README.md --profile strict --format sarif > mdmathlint.sarif
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: mdmathlint.sarif
