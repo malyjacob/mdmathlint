@@ -252,7 +252,7 @@ Profile 是针对真实渲染环境预调的严重级别配置。选择一个与
 | **`portable`** | 通用文档（默认） | 平衡策略；MDM015 关闭 |
 | **`strict`** | 要求最严格的可移植性 | MDM003 → error，MDM005 → warning，MDM015 → warning |
 | **`github`** | GitHub README / Issue / Wiki | MDM013 关闭（允许 `` $`...`$ ``），MDM005 → info |
-| **`llm-output`** | AI 生成内容的质量闸门 | MDM015 → error，MDM005 → warning，MDM013 → error，MDM022 → info |
+| **`llm-output`** | AI 生成内容的质量闸门 | MDM015 → error，MDM005 → warning，MDM013 → error，MDM022 → warning |
 | **`markdown-it`** | markdown-it + texmath/dollarmath 插件链 | MDM014 开启，使用 markdown-it 识别结果做 MDM015 判断 |
 
 ### 按场景选择

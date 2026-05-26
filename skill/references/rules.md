@@ -65,7 +65,7 @@ Key differences from `portable`:
 | MDM005 | info | **warning** | info | **warning** | info |
 | MDM013 | warning | **error** | off | **error** | off |
 | MDM015 | off | **warning** | off | **error** | **warning** |
-| MDM022 | off | off | off | **info** | off |
+| MDM022 | off | off | off | **warning** | off |
 
 ## LLM-optimized rules
 
