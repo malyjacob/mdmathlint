@@ -20,7 +20,7 @@ describe("CLI", () => {
       input: "令$x$为数列。\n",
       encoding: "utf8",
     });
-    expect(stdout).toContain("\"version\": \"1.1.0\"");
+    expect(stdout).toContain("\"version\": \"1.1.1\"");
     expect(stdout).toContain("\"MDM005\"");
   });
 

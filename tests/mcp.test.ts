@@ -48,7 +48,7 @@ describe("MCP server", () => {
     expect(payloads[0].result).toMatchObject({
       protocolVersion: "2024-11-05",
       capabilities: { tools: {} },
-      serverInfo: { name: "mdmathlint", version: "1.1.0" },
+      serverInfo: { name: "mdmathlint", version: "1.1.1" },
     });
   });
 
