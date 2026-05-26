@@ -57,7 +57,7 @@ function isShellVariable(text: string, offset: number): boolean {
   if (!variable) return false;
   const next = text[offset + variable.length + 1];
   if (/^[A-Z_][A-Z0-9_]*$/.test(variable)) {
-    return !next || !"$=+-*/^{}()[\\]".includes(next);
+    return !next || !"$=+-*/^{}()[\\]><".includes(next);
   }
   return variable.includes("_") && variable.length > 1;
 }
