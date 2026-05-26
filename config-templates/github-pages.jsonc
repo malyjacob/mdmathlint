@@ -1,0 +1,33 @@
+// mdmathlint GitHub Pages 博客配置模板
+// 复制到项目根目录，改名为 .mdmathlintrc.json 即可使用
+//
+// 场景：个人技术博客，部署到 GitHub Pages / Vercel
+// 特点：github profile + 手动开启 MDM015
+
+{
+  // github：匹配 GitHub 渲染链
+  // MDM013 off（允许 $`...`$ 反引号定界符）
+  // MDM005 → info（GitHub 对邻接处理较好）
+  "profile": "github",
+
+  "rules": {
+    // 手动开启核心规则
+    "MDM015": "warning"
+  },
+
+  "katex": {
+    "strict": "error",
+    "macros": {
+      // 在此声明博客中常用的自定义 LaTeX 宏
+    }
+  },
+
+  "fix": {
+    "inlineSpacing": true,
+    "displayOwnLine": true,
+    "currencyDollar": false
+  }
+
+  // 如果同时部署到自建站点（使用 markdown-it）：
+  // 改 profile 为 "markdown-it"，或用 --profile-diff 对比
+}

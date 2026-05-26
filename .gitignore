@@ -2,5 +2,6 @@ node_modules/
 dist/
 coverage/
 mdmathlint-plan/
+agent-adaptation-plan/
 REVIEW.md
 TODO.md

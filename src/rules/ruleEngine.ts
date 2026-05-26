@@ -4,11 +4,13 @@ import type { MarkdownItMathSpan } from "../parser/markdownItAdapter.js";
 import type { ParsedMathSpan } from "../parser/remarkAdapter.js";
 import type { RawDollarPair, ScanResult } from "../scanner/sourceScanner.js";
 import type { Diagnostic, Fix, KatexOptions, ProfileName, RuleSetting, Severity } from "../types.js";
+import type { KatexCheckResult } from "../math/safeKatexCheck.js";
 
 interface EngineOptions {
   profile: ProfileName;
   settings: Record<string, RuleSetting>;
   katex: KatexOptions;
+  fast: boolean;
   fixOptions: { inlineSpacing: boolean; displayOwnLine: boolean; currencyDollar: boolean };
 }
 
@@ -270,6 +272,19 @@ export function runRules(
     if (!parsedPair) {
       add(diagnostics, diagnostic(settings, "MDM015", "raw math delimiter was not recognized by the Markdown parser", pair.range, "Use portable math delimiter placement.", undefined, pair.id));
     }
+    if (parsedPair) {
+      add(diagnostics, diagnostic(
+        settings,
+        "MDM022",
+        pair.kind === "display"
+          ? "consider using \\[...\\] instead of $$...$$ for display math"
+          : "consider using \\(...\\) instead of $...$ for inline math",
+        pair.range,
+        "LaTeX bracket delimiters avoid dollar ambiguity and are uniformly supported by all math renderers.",
+        undefined,
+        pair.id,
+      ));
+    }
     if (markdownIt) {
       const adapters = [
         markdownIt.texmath,
@@ -342,23 +357,50 @@ export function runRules(
     }
   });
 
+  function emitUnknownCommand(result: KatexCheckResult, contentStart: number, spanId?: string): void {
+    if (result.ok || settings.MDM024 === "off") return;
+    const match = result.message.match(/Undefined control sequence: (\S+)/);
+    if (!match) return;
+    const cmd = match[1];
+    const macroName = cmd.startsWith("\\") ? cmd : `\\${cmd}`;
+    if (options.katex.macros && options.katex.macros[macroName] !== undefined) return;
+    const pos = result.position;
+    const range = pos !== undefined
+      ? rangeAt(document, contentStart + pos, contentStart + pos + cmd.length)
+      : rangeAt(document, contentStart, contentStart + 1);
+    add(diagnostics, diagnostic(
+      settings,
+      "MDM024",
+      `unknown LaTeX command ${cmd} may be an LLM hallucination — use a standard KaTeX command or define it in katex.macros`,
+      range,
+      "Replace with a standard LaTeX command or add the macro to your configuration.",
+      undefined,
+      spanId,
+    ));
+  }
+
   scan.bracketPairs.forEach((pair) => {
     if (pair.kind === "inline" && pair.content.includes("\n")) {
       add(diagnostics, diagnostic(settings, "MDM011", "inline math crosses a line boundary", pair.range, "Keep inline math on one line or use display math.", undefined, pair.id));
     }
-    const result = safeKatexCheck(pair.content, pair.kind === "display", options.katex);
-    if (result.ok || settings.MDM012 === "off") return;
-    const range = result.position === undefined
-      ? rangeAt(document, pair.open.endOffset, pair.close.offset)
-      : rangeAt(document, pair.open.endOffset + result.position, pair.open.endOffset + result.position + 1);
-    diagnostics.push({
-      code: "MDM012",
-      severity: result.tooLong || result.internalError ? "info" : settings.MDM012,
-      message: result.message,
-      range,
-      help: "Correct the TeX syntax accepted by KaTeX.",
-      spanId: pair.id,
-    });
+    if (!options.fast) {
+      const result = safeKatexCheck(pair.content, pair.kind === "display", options.katex);
+      if (result.ok || settings.MDM012 === "off") { /* skip */ }
+      else {
+        const range = result.position === undefined
+          ? rangeAt(document, pair.open.endOffset, pair.close.offset)
+          : rangeAt(document, pair.open.endOffset + result.position, pair.open.endOffset + result.position + 1);
+        diagnostics.push({
+          code: "MDM012",
+          severity: result.tooLong || result.internalError ? "info" : settings.MDM012,
+          message: result.message,
+          range,
+          help: "Correct the TeX syntax accepted by KaTeX.",
+          spanId: pair.id,
+        });
+        emitUnknownCommand(result, pair.open.endOffset, pair.id);
+      }
+    }
   });
 
   parsed.forEach((span) => {
@@ -368,22 +410,28 @@ export function runRules(
       pair.range.end.offset === span.range.end.offset,
     );
     if (!confirmedByRawScan) return;
-    const result = safeKatexCheck(span.content, span.kind === "display", options.katex);
-    if (result.ok) return;
-    const range = result.position === undefined
-      ? span.contentRange
-      : rangeAt(document, span.contentRange.start.offset + result.position, span.contentRange.start.offset + result.position + 1);
-    const baseSeverity = settings.MDM012;
-    if (baseSeverity === "off") return;
-    const severity: Severity = result.tooLong || result.internalError ? "info" : baseSeverity;
-    diagnostics.push({
-      code: "MDM012",
-      severity,
-      message: result.message,
-      range,
-      help: result.tooLong ? "Split very large formulae before validation." : "Correct the TeX syntax accepted by KaTeX.",
-      spanId: span.id,
-    });
+    if (!options.fast) {
+      const result = safeKatexCheck(span.content, span.kind === "display", options.katex);
+      if (result.ok) { /* skip */ }
+      else {
+        const range = result.position === undefined
+          ? span.contentRange
+          : rangeAt(document, span.contentRange.start.offset + result.position, span.contentRange.start.offset + result.position + 1);
+        const baseSeverity = settings.MDM012;
+        if (baseSeverity !== "off") {
+          const severity: Severity = result.tooLong || result.internalError ? "info" : baseSeverity;
+          diagnostics.push({
+            code: "MDM012",
+            severity,
+            message: result.message,
+            range,
+            help: result.tooLong ? "Split very large formulae before validation." : "Correct the TeX syntax accepted by KaTeX.",
+            spanId: span.id,
+          });
+          emitUnknownCommand(result, span.contentRange.start.offset, span.id);
+        }
+      }
+    }
   });
   if (options.profile === "markdown-it" && markdownIt) {
     markdownIt.selected.forEach((span) => {
@@ -393,22 +441,37 @@ export function runRules(
         parsedSpan.range.end.offset === span.range.end.offset,
       );
       if (checkedByRemark || settings.MDM012 === "off") return;
-      const result = safeKatexCheck(span.content, span.kind === "display", options.katex);
-      if (result.ok) return;
-      const delimiterLength = span.kind === "display" ? 2 : 1;
-      const contentOffset = span.range.start.offset + delimiterLength;
-      const range = result.position === undefined
-        ? rangeAt(document, contentOffset, span.range.end.offset - delimiterLength)
-        : rangeAt(document, contentOffset + result.position, contentOffset + result.position + 1);
-      diagnostics.push({
-        code: "MDM012",
-        severity: result.tooLong || result.internalError ? "info" : settings.MDM012,
-        message: result.message,
-        range,
-        help: result.tooLong ? "Split very large formulae before validation." : "Correct the TeX syntax accepted by KaTeX.",
-        spanId: span.pairId,
-      });
+      if (!options.fast) {
+        const result = safeKatexCheck(span.content, span.kind === "display", options.katex);
+        if (result.ok) { /* skip */ }
+        else {
+          const delimiterLength = span.kind === "display" ? 2 : 1;
+          const contentOffset = span.range.start.offset + delimiterLength;
+          const range = result.position === undefined
+            ? rangeAt(document, contentOffset, span.range.end.offset - delimiterLength)
+            : rangeAt(document, contentOffset + result.position, contentOffset + result.position + 1);
+          diagnostics.push({
+            code: "MDM012",
+            severity: result.tooLong || result.internalError ? "info" : settings.MDM012,
+            message: result.message,
+            range,
+            help: result.tooLong ? "Split very large formulae before validation." : "Correct the TeX syntax accepted by KaTeX.",
+            spanId: span.pairId,
+          });
+          emitUnknownCommand(result, contentOffset, span.pairId);
+        }
+      }
     });
+  }
+
+  if (scan.pairs.length > 0 && scan.bracketPairs.length > 0) {
+    add(diagnostics, diagnostic(
+      settings,
+      "MDM023",
+      `mixed dollar-style and bracket-style math delimiters (${scan.pairs.length} dollar, ${scan.bracketPairs.length} bracket pairs)`,
+      rangeAt(document, 0, Math.min(1, document.text.length)),
+      "Use a single delimiter style consistently throughout the document.",
+    ));
   }
 
   return applySuppression(diagnostics);

@@ -21,13 +21,16 @@ const portable: Record<string, RuleSetting> = {
   MDM019: "warning",
   MDM020: "warning",
   MDM021: "warning",
+  MDM022: "off",
+  MDM023: "warning",
+  MDM024: "warning",
 };
 
 const overrides: Record<ProfileName, Record<string, RuleSetting>> = {
   portable: {},
   strict: { MDM003: "error", MDM005: "warning", MDM015: "warning", MDM013: "error" },
   github: { MDM005: "info", MDM013: "off" },
-  "llm-output": { MDM005: "warning", MDM015: "error", MDM013: "error" },
+  "llm-output": { MDM005: "warning", MDM015: "error", MDM013: "error", MDM022: "info" },
   "markdown-it": { MDM013: "off", MDM014: "warning", MDM015: "warning" },
 };
 

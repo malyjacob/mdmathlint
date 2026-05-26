@@ -1,0 +1,36 @@
+// mdmathlint 严格模式配置模板
+// 复制到项目根目录，改名为 .mdmathlintrc.json 即可使用
+//
+// 场景：团队文档仓库、多人协作、要求最大可移植性
+// 特点：strict profile + 关闭货币误报（技术文档中常见）
+
+{
+  // strict：将所有格式化规则提升到最严格级别
+  // MDM003 → error、MDM005 → warning、MDM015 → warning
+  "profile": "strict",
+
+  "rules": {
+    // 技术文档中常出现价格，关闭货币误报
+    "MDM006": "off"
+  },
+
+  "katex": {
+    "strict": "error",
+    "macros": {
+      // 在此声明团队常用的自定义 LaTeX 宏
+      // "\\RR": "\\mathbb{R}",
+      // "\\NN": "\\mathbb{N}",
+      // "\\argmax": "\\mathop{\\mathrm{argmax}}\\limits"
+    }
+  },
+
+  "fix": {
+    // 本地开发时启用自动修复
+    "inlineSpacing": true,
+    "displayOwnLine": true,
+    "currencyDollar": false
+  }
+
+  // CI 中运行相同配置但不带 --fix：
+  // mdmathlint "docs/**/*.md" --max-warnings 0
+}

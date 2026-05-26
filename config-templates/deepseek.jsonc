@@ -1,0 +1,43 @@
+// mdmathlint DeepSeek / 中文 LLM 输出配置模板
+// 复制到项目根目录，改名为 .mdmathlintrc.json 即可使用
+//
+// 场景：校验 DeepSeek 等中文 LLM 生成的 Markdown 数学内容
+// 特点：llm-output 底子 + 关闭货币误报（中文技术文常出现 ¥$ 混用）
+//        + 默认开启 fast（大批量输出先快速筛一遍）
+//
+// 等价于 CLI：mdmathlint answer.md --preset deepseek
+
+{
+  // llm-output：MDM015 → error、MDM005 → warning、MDM013 → error
+  "profile": "llm-output",
+
+  "rules": {
+    // 中文技术文档中 $5、$100 等价格表述常见，关闭货币误报
+    "MDM006": "off"
+  },
+
+  "katex": {
+    "strict": "error",
+    // DeepSeek 可能生成自定义 LaTeX 命令
+    // 如果你的渲染链支持这些宏，请在此声明
+    "macros": {
+      // "\\bm": "\\boldsymbol",
+      // "\\dd": "\\mathrm{d}"
+    }
+  },
+
+  "fix": {
+    "inlineSpacing": true,
+    "displayOwnLine": true,
+    "currencyDollar": false
+  },
+
+  // 大批量输出先做快速结构性初筛（跳过 KaTeX），完整检查再关掉
+  "fast": true
+
+  // 典型工作流：
+  // 1. 快速初筛：mdmathlint "output/**/*.md" （fast: true 已生效）
+  // 2. 完整检查：mdmathlint "output/**/*.md" --no-fast（临时关闭 fast）
+  // 3. LLM 格式：mdmathlint answer.md --format llm
+  // 4. MCP 调用：Agent 调 lint_markdown(text, profile="llm-output", fast=true)
+}

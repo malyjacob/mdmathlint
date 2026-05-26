@@ -4,9 +4,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import process from "node:process";
 import { Command, InvalidArgumentError } from "commander";
+import { VERSION } from "./version.js";
 import fg from "fast-glob";
-import { findConfig, lintText, profileDiffText, resolveCrossFileReferences, type LintOptions, type MarkdownItSimulation, type ProfileName } from "./index.js";
-import { reportFixDiff, reportJson, reportPretty, reportProfileDiffJson, reportProfileDiffPretty, reportSarif } from "./diagnostics/reporters.js";
+import { findConfig, lintText, profileDiffText, resolveCrossFileReferences, resolvePreset, type LintOptions, type MarkdownItSimulation, type ProfileName } from "./index.js";
+import { reportFixDiff, reportFixPrompt, reportJson, reportLlm, reportPretty, reportProfileDiffJson, reportProfileDiffPretty, reportSarif } from "./diagnostics/reporters.js";
 import { initializeConfig } from "./init.js";
 import { explainRule } from "./rules/catalog.js";
 
@@ -24,20 +25,24 @@ async function stdin(): Promise<string> {
 
 const command = new Command()
   .name("mdmathlint")
+  .version(VERSION)
   .argument("[files...]")
   .option("--init", "create a .mdmathlintrc.json configuration interactively")
   .option("--stdin", "read Markdown from stdin")
   .option("--stdin-filename <name>", "virtual filename for stdin diagnostics", "<stdin>")
+  .option("--preset <name>", "chatgpt|claude|deepseek — shortcut for profile + rules")
   .option("--profile <name>", "portable|strict|github|llm-output|markdown-it")
   .option("--profile-diff <profiles>", "compare comma-separated profiles")
   .option("--markdown-it-simulation <name>", "texmath|dollarmath", "dollarmath")
   .option("--config <path>", "configuration file path")
   .option("--no-config", "skip configuration file discovery")
-  .option("--format <format>", "pretty|json|sarif", "pretty")
+  .option("--format <format>", "pretty|json|sarif|llm", "pretty")
+  .option("--fix-prompt", "output a natural-language fix prompt for LLM consumption")
   .option("--color", "force ANSI colors in pretty output")
   .option("--no-color", "disable ANSI colors in pretty output")
   .option("--fix", "apply safe fixes")
   .option("--fix-dry-run", "calculate fixes without writing files")
+  .option("--fast", "skip KaTeX parse validation (faster, only structural checks)")
   .option("--watch", "watch input files and lint again when they change")
   .option("--explain <rule-id>", "print a rule explanation")
   .option("--max-warnings <n>", "fail if warnings exceed n", integer);
@@ -48,14 +53,17 @@ async function main(): Promise<number> {
     init?: boolean;
     stdin?: boolean;
     stdinFilename: string;
+    preset?: string;
     profile?: ProfileName;
     profileDiff?: string;
     markdownItSimulation?: MarkdownItSimulation;
     config?: string | false;
-    format: "pretty" | "json" | "sarif";
+    format: "pretty" | "json" | "sarif" | "llm";
+    fixPrompt?: boolean;
     color?: boolean;
     fix?: boolean;
     fixDryRun?: boolean;
+    fast?: boolean;
     watch?: boolean;
     explain?: string;
     maxWarnings?: number;
@@ -70,24 +78,30 @@ async function main(): Promise<number> {
     process.stdout.write(`${explanation}\n`);
     return 0;
   }
-  if (!["pretty", "json", "sarif"].includes(options.format)) throw new Error(`Unsupported format: ${options.format}`);
+  if (!["pretty", "json", "sarif", "llm"].includes(options.format)) throw new Error(`Unsupported format: ${options.format}`);
   if (options.markdownItSimulation && !["texmath", "dollarmath"].includes(options.markdownItSimulation)) {
     throw new Error(`Unsupported markdown-it simulation: ${options.markdownItSimulation}`);
   }
   if (options.watch && options.stdin) throw new Error("--watch cannot be used with --stdin.");
   if (options.watch && options.profileDiff) throw new Error("--watch cannot be used with --profile-diff.");
+  if (options.fixPrompt && options.format === "llm") throw new Error("--fix-prompt cannot be used with --format llm.");
+  if (options.fixPrompt && (options.fix || options.fixDryRun)) throw new Error("--fix-prompt cannot be used with --fix.");
+  if (options.fixPrompt && options.profileDiff) throw new Error("--fix-prompt cannot be used with --profile-diff.");
   const found = options.config === false
     ? { config: {} }
     : findConfig(process.cwd(), options.config);
   const prettyColor = options.color === undefined
     ? process.env.NO_COLOR === undefined && Boolean(process.stdout.isTTY)
     : options.color;
+  const preset = options.preset ? resolvePreset(options.preset) : undefined;
+  if (options.preset && !preset) throw new Error(`Unknown preset: ${options.preset}. Choose chatgpt, claude, or deepseek.`);
   const lintOptions: LintOptions = {
-    profile: options.profile ?? found.config.profile ?? "portable",
-    rules: found.config.rules,
+    profile: options.profile ?? found.config.profile ?? preset?.profile ?? "portable",
+    rules: { ...preset?.rules, ...found.config.rules },
     katex: found.config.katex,
     fixOptions: found.config.fix,
     fix: Boolean(options.fix || options.fixDryRun),
+    fast: options.fast ?? found.config.fast ?? false,
     markdownItSimulation: options.markdownItSimulation,
   };
   const inputs: Array<{ path: string; text: string; writable: boolean }> = [];
@@ -124,8 +138,13 @@ async function main(): Promise<number> {
         }
       }
     }
-    const output = options.format === "json" ? reportJson(results) : options.format === "sarif" ? reportSarif(results) : reportPretty(results, { color: prettyColor });
-    const preview = options.fixDryRun && options.format === "pretty"
+    const output = options.fixPrompt
+      ? reportFixPrompt(results)
+      : options.format === "json" ? reportJson(results)
+      : options.format === "sarif" ? reportSarif(results)
+      : options.format === "llm" ? reportLlm(results)
+      : reportPretty(results, { color: prettyColor });
+    const preview = (options.fixDryRun && options.format === "pretty")
       ? reportFixDiff(results)
       : "";
     process.stdout.write(`${preview ? `${preview}\n\n` : ""}${output}\n`);

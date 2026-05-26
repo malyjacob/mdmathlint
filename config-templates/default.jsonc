@@ -1,0 +1,51 @@
+// mdmathlint 通用配置模板
+// 复制到项目根目录，改名为 .mdmathlintrc.json 即可使用
+//
+// 场景：通用 Markdown 文档，不确定目标渲染平台
+// 特点：portable profile 平衡误报与漏报，手动开启 MDM015 核心检查
+
+{
+  // 渲染目标环境（默认 "portable"）
+  // 可选：portable | strict | github | llm-output | markdown-it
+  "profile": "portable",
+
+  // 逐规则覆盖严重级别
+  // 可选值：off | info | warning | error
+  "rules": {
+    // 核心规则：检测解析器未识别的 $ / $$ 定界符
+    // 默认关闭，建议手动开启
+    "MDM015": "warning",
+
+    // 如果你的文档常出现价格（$5、$1,000），可关闭货币误报
+    // "MDM006": "off"
+  },
+
+  // KaTeX 解析选项
+  "katex": {
+    // 严格模式：error（默认）| warn | ignore
+    "strict": "error",
+
+    // 自定义 LaTeX 宏：避免 MDM012 和 MDM024 误报
+    // 如果你的渲染链支持这些宏，请在此声明
+    "macros": {
+      // "\\RR": "\\mathbb{R}",
+      // "\\NN": "\\mathbb{N}"
+    }
+  },
+
+  // 自动修复行为
+  "fix": {
+    // 行内公式两侧自动加空格
+    "inlineSpacing": true,
+    // display 定界符自动拆分到独立行
+    "displayOwnLine": true,
+    // 货币 $ 自动转义为 \$（默认关闭，误转义风险高）
+    "currencyDollar": false
+  }
+
+  // 如需 Monorepo 中子包不继承祖先配置：
+  // "root": true
+
+  // 如需默认跳过 KaTeX 解析（仅结构性检查）：
+  // "fast": true
+}

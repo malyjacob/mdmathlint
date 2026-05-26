@@ -1,0 +1,36 @@
+// mdmathlint LLM 输出校验配置模板
+// 复制到项目根目录，改名为 .mdmathlintrc.json 即可使用
+//
+// 场景：校验 AI / LLM 生成的 Markdown，零容忍渲染缺陷
+// 特点：llm-output profile 全开，也可用 --preset deepseek 快捷启用
+
+{
+  // llm-output：专为 AI 生成内容设计的 profile
+  // MDM015 → error（未识别定界符必须修复）
+  // MDM005 → warning（行内公式必须与文本分隔）
+  // MDM013 → error（禁止平台专属语法）
+  // MDM022 → info（建议使用 \(...\) / \[...\] 定界符）
+  "profile": "llm-output",
+
+  "katex": {
+    "strict": "error",
+    // 如果你的 LLM pipeline 使用了自定义 LaTeX 命令
+    // 请在此声明，避免 MDM012 和 MDM024 误报
+    "macros": {
+      // "\\E": "\\mathbb{E}",
+      // "\\Var": "\\mathrm{Var}"
+    }
+  },
+
+  "fix": {
+    "inlineSpacing": true,
+    "displayOwnLine": true,
+    "currencyDollar": false
+  }
+
+  // 典型用法：
+  // 1. 管道校验：echo "$output" | mdmathlint --stdin --profile llm-output --format llm
+  // 2. 批量初筛：mdmathlint "output/**/*.md" --fast
+  // 3. 快捷预设：mdmathlint answer.md --preset deepseek
+  // 4. MCP 调用：Agent 直接调 lint_markdown(text, profile="llm-output")
+}

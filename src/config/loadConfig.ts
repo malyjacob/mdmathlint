@@ -34,6 +34,7 @@ function mergeConfig(parent: ConfigFile, child: ConfigFile): ConfigFile {
       },
     } : {}),
     ...((parent.fix || child.fix) ? { fix: { ...parent.fix, ...child.fix } } : {}),
+    ...(child.fast ?? parent.fast !== undefined ? { fast: child.fast ?? parent.fast } : {}),
   };
 }
 

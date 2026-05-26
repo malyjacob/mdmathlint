@@ -9,10 +9,22 @@ inputs:
     description: Rendering profile to enforce.
     required: false
     default: strict
+  preset:
+    description: Shortcut preset (chatgpt, claude, or deepseek).
+    required: false
+    default: ""
   format:
-    description: Output format (pretty, json, or sarif).
+    description: Output format (pretty, json, sarif, or llm).
     required: false
     default: pretty
+  fast:
+    description: Skip KaTeX validation, only run structural checks.
+    required: false
+    default: "false"
+  fix-prompt:
+    description: Output a natural-language fix prompt for LLM consumption.
+    required: false
+    default: "false"
   max-warnings:
     description: Fail after more than this number of warnings.
     required: false
@@ -30,10 +42,24 @@ runs:
       env:
         INPUT_FILES: ${{ inputs.files }}
         INPUT_PROFILE: ${{ inputs.profile }}
+        INPUT_PRESET: ${{ inputs.preset }}
         INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_FAST: ${{ inputs.fast }}
+        INPUT_FIX_PROMPT: ${{ inputs.fix-prompt }}
         INPUT_MAX_WARNINGS: ${{ inputs.max-warnings }}
       run: |
-        args=("$INPUT_FILES" "--profile" "$INPUT_PROFILE" "--format" "$INPUT_FORMAT")
+        args=("$INPUT_FILES" "--format" "$INPUT_FORMAT")
+        if [ -n "$INPUT_PRESET" ]; then
+          args+=("--preset" "$INPUT_PRESET")
+        elif [ -n "$INPUT_PROFILE" ]; then
+          args+=("--profile" "$INPUT_PROFILE")
+        fi
+        if [ "$INPUT_FAST" = "true" ]; then
+          args+=("--fast")
+        fi
+        if [ "$INPUT_FIX_PROMPT" = "true" ]; then
+          args+=("--fix-prompt")
+        fi
         if [ -n "$INPUT_MAX_WARNINGS" ]; then
           args+=("--max-warnings" "$INPUT_MAX_WARNINGS")
         fi

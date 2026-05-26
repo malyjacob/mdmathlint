@@ -159,6 +159,16 @@ describe("P2 semantic math rules", () => {
     expect(codes(result)).toContain("MDM018");
   });
 
+  it("flags mixed dollar and bracket delimiter styles", async () => {
+    const result = await lintText("$x+1$ and \\(y+2\\)\n");
+    expect(codes(result)).toContain("MDM023");
+  });
+
+  it("flags unknown LaTeX commands", async () => {
+    const result = await lintText("$$\n\\differential{x}\n$$\n");
+    expect(codes(result)).toContain("MDM024");
+  });
+
   it("reports references whose labels are not defined in the document", async () => {
     const defined = await lintText("$$\nx=1\\label{eq:x}\n$$\n\nSee $\\ref{eq:x}$.\n");
     const missing = await lintText("See $\\ref{eq:missing}$.\n");

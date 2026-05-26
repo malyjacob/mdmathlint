@@ -49,6 +49,7 @@ export interface LintOptions {
   katex?: KatexOptions;
   fix?: boolean;
   fixOptions?: FixOptions;
+  fast?: boolean;
   markdownItSimulation?: MarkdownItSimulation;
 }
 
@@ -71,6 +72,7 @@ export interface ConfigFile {
   rules?: Record<string, RuleSetting>;
   katex?: KatexOptions;
   fix?: FixOptions;
+  fast?: boolean;
 }
 
 export interface ProfileDiffResult {

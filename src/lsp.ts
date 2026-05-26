@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import process from "node:process";
+import { cwd } from "node:process";
 import { fileURLToPath } from "node:url";
 import { findConfig, lintText, type LintOptions } from "./index.js";
+import { rpcMessage, rpcResponse, rpcNotification, startRpcServer, type JsonRpcRequest } from "./transport/jsonRpcStdio.js";
 import type { Diagnostic } from "./types.js";
 
 interface LspPosition {
@@ -48,19 +49,6 @@ const documents = new Map<string, OpenDocument>();
 let workspaceDirectories: string[] = [];
 let outgoingRequestId = 1;
 
-function message(payload: object): string {
-  const body = JSON.stringify(payload);
-  return `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
-}
-
-function response(id: number | string | undefined, result: unknown): string {
-  return message({ jsonrpc: "2.0", id: id ?? null, result });
-}
-
-function notification(method: string, params: object): string {
-  return message({ jsonrpc: "2.0", method, params });
-}
-
 function filePathFromUri(uri: string): string | undefined {
   if (!uri.startsWith("file:")) return undefined;
   try {
@@ -95,7 +83,7 @@ function applyChanges(text: string, changes: ContentChange[]): string {
 function configStartDirectory(uri: string): string {
   const filePath = filePathFromUri(uri);
   if (filePath) return dirname(filePath);
-  return workspaceDirectories[0] ?? process.cwd();
+  return workspaceDirectories[0] ?? cwd();
 }
 
 function lintOptions(uri: string, fix = false): LintOptions {
@@ -128,7 +116,7 @@ async function diagnosticsFor(uri: string, text: string, fix = false) {
 }
 
 function publish(uri: string, diagnostics: Diagnostic[]): string {
-  return notification("textDocument/publishDiagnostics", {
+  return rpcNotification("textDocument/publishDiagnostics", {
     uri,
     diagnostics: diagnostics.map(asLspDiagnostic),
   });
@@ -146,7 +134,8 @@ async function documentText(uri: string): Promise<string | undefined> {
   }
 }
 
-async function handle(request: LspRequest): Promise<string[]> {
+async function handle(raw: JsonRpcRequest): Promise<string[]> {
+  const request = raw as LspRequest;
   if (!request.method) return [];
   if (request.method === "initialize") {
     workspaceDirectories = (request.params?.workspaceFolders ?? [])
@@ -154,17 +143,17 @@ async function handle(request: LspRequest): Promise<string[]> {
       .filter((directory): directory is string => Boolean(directory));
     const root = request.params?.rootUri ? filePathFromUri(request.params.rootUri) : undefined;
     if (root && workspaceDirectories.length === 0) workspaceDirectories = [root];
-    return [response(request.id, {
+    return [rpcResponse(request.id, {
       capabilities: {
         textDocumentSync: { openClose: true, change: 2, save: { includeText: true } },
       },
     })];
   }
-  if (request.method === "shutdown") return [response(request.id, null)];
+  if (request.method === "shutdown") return [rpcResponse(request.id, null)];
   if (request.method === "exit") return [];
 
   const textDocument = request.params?.textDocument;
-  if (!textDocument?.uri) return request.id === undefined ? [] : [response(request.id, null)];
+  if (!textDocument?.uri) return request.id === undefined ? [] : [rpcResponse(request.id, null)];
   const uri = textDocument.uri;
 
   if (request.method === "textDocument/didOpen" && textDocument.text !== undefined) {
@@ -191,7 +180,7 @@ async function handle(request: LspRequest): Promise<string[]> {
     const outputs: string[] = [];
     if (result.fixedText !== undefined && result.fixedText !== text) {
       documents.set(uri, { text: result.fixedText, version: documents.get(uri)?.version });
-      outputs.push(message({
+      outputs.push(rpcMessage({
         jsonrpc: "2.0",
         id: outgoingRequestId++,
         method: "workspace/applyEdit",
@@ -211,43 +200,7 @@ async function handle(request: LspRequest): Promise<string[]> {
     outputs.push(publish(uri, result.diagnostics));
     return outputs;
   }
-  return request.id === undefined ? [] : [response(request.id, null)];
+  return request.id === undefined ? [] : [rpcResponse(request.id, null)];
 }
 
-let input = Buffer.alloc(0);
-let processing = Promise.resolve();
-process.stdin.on("data", (chunk: Buffer) => {
-  input = Buffer.concat([input, chunk]);
-  processing = processing.then(drain).catch((error: unknown) => {
-    process.stderr.write(`mdmathlint-lsp: ${error instanceof Error ? error.message : String(error)}\n`);
-  });
-});
-
-async function drain(): Promise<void> {
-  for (;;) {
-    const separator = input.indexOf("\r\n\r\n");
-    if (separator === -1) return;
-    const header = input.subarray(0, separator).toString("ascii");
-    const length = Number.parseInt(header.match(/Content-Length:\s*(\d+)/i)?.[1] ?? "", 10);
-    if (!Number.isInteger(length)) {
-      input = Buffer.alloc(0);
-      return;
-    }
-    const bodyStart = separator + 4;
-    if (input.length < bodyStart + length) return;
-    const body = input.subarray(bodyStart, bodyStart + length).toString("utf8");
-    input = input.subarray(bodyStart + length);
-    const outputs = await handle(JSON.parse(body) as LspRequest);
-    outputs.forEach((output) => process.stdout.write(output));
-  }
-}
-
-process.stdin.on("end", () => {
-  const keepAlive = setInterval(() => undefined, 1000);
-  processing = processing
-    .then(drain)
-    .catch((error: unknown) => {
-      process.stderr.write(`mdmathlint-lsp: ${error instanceof Error ? error.message : String(error)}\n`);
-    })
-    .finally(() => clearInterval(keepAlive));
-});
+startRpcServer(handle);

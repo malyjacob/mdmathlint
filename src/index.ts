@@ -22,6 +22,8 @@ export type {
   RuleSetting,
 } from "./types.js";
 export { findConfig } from "./config/loadConfig.js";
+export { resolvePreset } from "./core/presets.js";
+export type { Preset } from "./core/presets.js";
 
 function lintOnce(text: string, options: LintOptions): Diagnostic[] {
   const document = createDocument(text, options.filePath);
@@ -44,6 +46,7 @@ function lintOnce(text: string, options: LintOptions): Diagnostic[] {
     profile,
     settings,
     katex: options.katex ?? {},
+    fast: options.fast ?? false,
     fixOptions: {
       inlineSpacing: options.fixOptions?.inlineSpacing ?? true,
       displayOwnLine: options.fixOptions?.displayOwnLine ?? true,
