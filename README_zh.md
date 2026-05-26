@@ -632,14 +632,14 @@ mdmathlint 从设计之初就考虑了 AI 生成内容的校验。除 `llm-outpu
 两种面向 AI Agent 的输出模式：
 
 ```bash
-# 结构化 JSON，内含 fix_prompt
+# 结构化 JSON（pass/summary/issues/examples），不含原文以节省 token
 echo "$markdown" | mdmathlint --stdin --format llm --profile llm-output
 
 # 纯文本修复提示，可直接喂回 LLM
 mdmathlint answer.md --fix-prompt --profile llm-output
 ```
 
-`llm` 格式包含 `pass`、`summary`、每条 issue 含 `snippet`/`examples[]`/`why`，以及 `fix_prompt` 字段。`--fix-prompt` 将同样内容输出为纯文本——直接粘贴到下一个 LLM prompt 即可。
+`llm` 格式包含 `pass`、`summary`、每条 issue 含 `snippet`/`examples[]`/`why`。`--fix-prompt` 输出纯文本修复指令——直接粘贴到下一个 LLM prompt 即可。
 
 ### MCP Server
 

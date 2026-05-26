@@ -637,7 +637,7 @@ echo "$markdown" | mdmathlint --stdin --format llm --profile llm-output
 mdmathlint answer.md --fix-prompt --profile llm-output
 ```
 
-The `llm` format includes `pass`, `summary`, per-issue `snippet`/`examples[]`/`why`, and a `fix_prompt` field. The `--fix-prompt` flag outputs the same fix instructions as plain text — paste it directly into your next LLM prompt.
+The `llm` format includes `pass`, `summary`, and per-issue `snippet`/`examples[]`/`why`. The `--fix-prompt` flag outputs plain-text fix instructions — paste them directly into your next LLM prompt.
 
 ### MCP Server
 
