@@ -2,3 +2,5 @@ node_modules/
 dist/
 coverage/
 mdmathlint-plan/
+REVIEW.md
+TODO.md

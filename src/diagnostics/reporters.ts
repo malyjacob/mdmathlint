@@ -59,7 +59,7 @@ export function reportJson(results: LintResult[]): string {
   const warningCount = results.reduce((count, result) => count + result.stats.warningCount, 0);
   const infoCount = results.reduce((count, result) => count + result.stats.infoCount, 0);
   return JSON.stringify({
-    version: "0.3.0",
+    version: "0.5.0",
     files: results.map((result) => ({
       path: result.filePath,
       diagnostics: result.diagnostics.map(({ spanId: _spanId, ...diagnostic }) => diagnostic),
@@ -78,8 +78,8 @@ export function reportSarif(results: LintResult[]): string {
       tool: {
         driver: {
           name: "mdmathlint",
-          version: "0.3.0",
-          informationUri: "https://github.com/mdmathlint/mdmathlint",
+          version: "0.5.0",
+          informationUri: "https://github.com/malyjacob/mdmathlint",
           rules: codes.map((code) => ({ id: code, shortDescription: { text: code } })),
         },
       },
@@ -120,7 +120,7 @@ export function reportProfileDiffPretty(results: ProfileDiffResult[], profiles: 
 
 export function reportProfileDiffJson(results: ProfileDiffResult[], profiles: ProfileName[]): string {
   return JSON.stringify({
-    version: "0.3.0",
+    version: "0.5.0",
     profiles,
     files: results.map((result) => ({
       path: result.filePath,
