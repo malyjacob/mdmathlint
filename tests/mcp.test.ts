@@ -163,10 +163,10 @@ describe("MCP server", () => {
     expect(mdm005.examples.length).toBeGreaterThan(0);
 
     const mdm022 = result.files[0].issues.find((i: { rule: string }) => i.rule === "MDM022");
-    expect(mdm022.severity).toBe("info");
+    expect(mdm022.severity).toBe("warning");
 
-    expect(typeof result.fix_prompt).toBe("string");
-    expect(result.fix_prompt.length).toBeGreaterThan(0);
+    // fix_prompt removed from llm format to save tokens
+    expect(result.fix_prompt).toBeUndefined();
   });
 
   it("lint_markdown detects errors (pass=false)", () => {

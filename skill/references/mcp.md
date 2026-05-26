@@ -45,7 +45,7 @@ Check Markdown for math rendering issues. Supports full configuration control.
 | `fix` | boolean | no | Also apply safe auto-fixes and return `fixed` text |
 | `filePath` | string | no | Virtual filename for location reporting |
 
-Returns: JSON with `pass`, `summary`, `issues[]` (each with `severity`, `rule`, `line`, `column`, `snippet`, `examples[]`, `why`), and `fix_prompt`.
+Returns: JSON with `pass`, `summary`, `issues[]` (each with `severity`, `rule`, `line`, `column`, `snippet`, `examples[]`, `why`).
 
 When `fix: true`, also returns `fixed` (corrected Markdown string) and `changed` (boolean).
 

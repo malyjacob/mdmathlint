@@ -180,19 +180,18 @@ describe("CLI", () => {
     expect(result.stdout).not.toContain("\"MDM019\"");
   });
 
-  it("outputs llm format with structured JSON including pass, issues, examples, and fix_prompt", () => {
+  it("outputs llm format with structured JSON including pass, issues, and examples", () => {
     const stdout = execFileSync(process.execPath, [cli, "--stdin", "--format", "llm"], {
       input: "令$x$为变量。\n",
       encoding: "utf8",
     });
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
 
-    // top-level structure
+    // top-level structure — no fix_prompt to save tokens
     expect(typeof parsed.pass).toBe("boolean");
     expect(parsed.summary).toBeDefined();
     expect(Array.isArray(parsed.files)).toBe(true);
-    expect(typeof parsed.fix_prompt).toBe("string");
-    expect((parsed.fix_prompt as string).length).toBeGreaterThan(0);
+    expect(parsed.fix_prompt).toBeUndefined();
 
     // files[0].issues
     const file = (parsed.files as Array<Record<string, unknown>>)[0];
@@ -229,7 +228,7 @@ describe("CLI", () => {
     expect(stdout).toContain("MDM005");
     expect(stdout).toContain("Bad:");
     expect(stdout).toContain("Good:");
-    expect(stdout).toContain("--- Original Markdown ---");
+    expect(stdout).not.toContain("--- Original Markdown ---");
   });
 
   it("rejects mutually exclusive --fix-prompt with --format llm", () => {

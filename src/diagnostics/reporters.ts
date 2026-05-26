@@ -183,7 +183,6 @@ interface LlmOutput {
     path: string;
     issues: LlmIssue[];
   }>;
-  fix_prompt: string;
 }
 
 function snippetFromRange(text: string, startLine: number, startColumn: number, endLine: number, endColumn: number): string {
@@ -235,11 +234,7 @@ function buildFixPrompt(results: LintResult[]): string {
     return parts.join("\n");
   }).join("\n\n");
 
-  const sourceTexts = results.map((result) => {
-    return `--- ${result.filePath} ---\n${result.sourceText}`;
-  }).join("\n\n");
-
-  return `${header}\n${body}\n\n--- Original Markdown ---\n${sourceTexts}`;
+  return `${header}\n${body}`;
 }
 
 export function reportLlm(results: LintResult[]): string {
@@ -276,7 +271,6 @@ export function reportLlm(results: LintResult[]): string {
     pass: errors === 0,
     summary: { errors, warnings, info },
     files: llmFiles,
-    fix_prompt: buildFixPrompt(results),
   };
 
   return JSON.stringify(output, null, 2);
