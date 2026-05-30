@@ -31,7 +31,7 @@ Short alias: `mdml`
 
 | Option | Description |
 |---|---|
-| `--format <format>` | `pretty` (default) \| `json` \| `sarif` \| `llm` |
+| `--format <format>` | `llm` (default) \| `json` \| `sarif` \| `pretty` |
 | `--color` / `--no-color` | Force or disable ANSI color in pretty output |
 | `--fix-prompt` | Output natural-language fix prompt for LLM consumption |
 
@@ -71,7 +71,10 @@ Preset applies first; config file and `--profile` can override.
 
 ## Output formats
 
-### `pretty` (default)
+### `llm` (default)
+Structured JSON optimized for AI agent consumption (pass/fail, issues with examples, summary).
+
+### `pretty`
 Rust-style human-readable diagnostics with source frames and caret markers.
 
 ### `json`

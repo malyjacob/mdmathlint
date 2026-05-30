@@ -14,9 +14,9 @@ inputs:
     required: false
     default: ""
   format:
-    description: Output format (pretty, json, sarif, or llm).
+    description: Output format (llm, json, sarif, or pretty).
     required: false
-    default: pretty
+    default: llm
   fast:
     description: Skip KaTeX validation, only run structural checks.
     required: false

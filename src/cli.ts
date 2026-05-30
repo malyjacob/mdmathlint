@@ -36,7 +36,7 @@ const command = new Command()
   .option("--markdown-it-simulation <name>", "texmath|dollarmath", "dollarmath")
   .option("--config <path>", "configuration file path")
   .option("--no-config", "skip configuration file discovery")
-  .option("--format <format>", "pretty|json|sarif|llm", "pretty")
+  .option("--format <format>", "pretty|json|sarif|llm", "llm")
   .option("--fix-prompt", "output a natural-language fix prompt for LLM consumption")
   .option("--color", "force ANSI colors in pretty output")
   .option("--no-color", "disable ANSI colors in pretty output")
@@ -84,7 +84,6 @@ async function main(): Promise<number> {
   }
   if (options.watch && options.stdin) throw new Error("--watch cannot be used with --stdin.");
   if (options.watch && options.profileDiff) throw new Error("--watch cannot be used with --profile-diff.");
-  if (options.fixPrompt && options.format === "llm") throw new Error("--fix-prompt cannot be used with --format llm.");
   if (options.fixPrompt && (options.fix || options.fixDryRun)) throw new Error("--fix-prompt cannot be used with --fix.");
   if (options.fixPrompt && options.profileDiff) throw new Error("--fix-prompt cannot be used with --profile-diff.");
   const found = options.config === false
