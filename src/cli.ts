@@ -36,7 +36,7 @@ const command = new Command()
   .option("--markdown-it-simulation <name>", "texmath|dollarmath", "dollarmath")
   .option("--config <path>", "configuration file path")
   .option("--no-config", "skip configuration file discovery")
-  .option("--format <format>", "pretty|json|sarif|llm", "llm")
+  .option("--format <format>", "llm|json|sarif|pretty", "llm")
   .option("--fix-prompt", "output a natural-language fix prompt for LLM consumption")
   .option("--color", "force ANSI colors in pretty output")
   .option("--no-color", "disable ANSI colors in pretty output")
@@ -137,6 +137,8 @@ async function main(): Promise<number> {
         }
       }
     }
+    // fix-prompt intentionally overrides --format: it always emits plain text,
+    // never JSON, so the user gets a regenerate-able natural-language prompt.
     const output = options.fixPrompt
       ? reportFixPrompt(results)
       : options.format === "json" ? reportJson(results)
