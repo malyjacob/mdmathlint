@@ -152,7 +152,6 @@ describe("MCP server", () => {
 
     const ruleIds = result.files[0].issues.map((i: { rule: string }) => i.rule);
     expect(ruleIds).toContain("MDM005");
-    expect(ruleIds).toContain("MDM022");
 
     const mdm005 = result.files[0].issues.find((i: { rule: string }) => i.rule === "MDM005");
     expect(mdm005.severity).toBe("warning");
@@ -161,9 +160,6 @@ describe("MCP server", () => {
     expect(mdm005.snippet).toBeDefined();
     expect(Array.isArray(mdm005.examples)).toBe(true);
     expect(mdm005.examples.length).toBeGreaterThan(0);
-
-    const mdm022 = result.files[0].issues.find((i: { rule: string }) => i.rule === "MDM022");
-    expect(mdm022.severity).toBe("warning");
 
     // fix_prompt removed from llm format to save tokens
     expect(result.fix_prompt).toBeUndefined();
@@ -260,7 +256,7 @@ describe("MCP server", () => {
     const result = contentJson(payloads[0]);
     expect(result.fixed).toBe("令 $x$ 为变量。\n");
     expect(result.changed).toBe(true);
-    // still has issues (MDM022 info about delimiter style preference)
+    // MDM022 is off in llm-output; after fix there may be no remaining issues
     expect(Array.isArray(result.files?.[0]?.issues)).toBe(true);
   });
 });
