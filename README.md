@@ -252,7 +252,7 @@ Profiles are pre-tuned severity maps for real rendering environments. Choose the
 | **`portable`** | General use (default) | Balanced; MDM015 off |
 | **`strict`** | Maximum portability | MDM003 → error, MDM005 → warning, MDM015 → warning |
 | **`github`** | GitHub README / Issues / Wiki | MDM013 off (allows `` $`...`$ ``), MDM005 → info |
-| **`llm-output`** | AI-generated content quality gate | MDM015 → error, MDM005 → warning, MDM013 → error, MDM022 → warning |
+| **`llm-output`** | AI-generated content quality gate | MDM015 → error, MDM005 → warning, MDM013 → error |
 | **`markdown-it`** | markdown-it + texmath/dollarmath | MDM014 on, uses markdown-it recognition for MDM015 |
 
 ### Choosing by use case
