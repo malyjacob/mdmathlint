@@ -473,7 +473,7 @@ mdmathlint [文件...] [选项]
   --markdown-it-simulation <名称>  texmath|dollarmath（默认 dollarmath）
   --config <路径>               显式指定配置文件路径
   --no-config                   跳过自动发现的配置文件
-  --format <格式>               pretty（默认）| json | sarif | llm
+  --format <格式>               llm（默认）| json | sarif | pretty
   --color / --no-color          强制启用或禁用 pretty 输出中的 ANSI 颜色
   --fix                         应用安全修复（空格、空行、定界符位置）
   --fix-dry-run                 输出 unified diff 而不写入文件
@@ -511,7 +511,7 @@ mdmathlint "docs/**/*.md" --watch
 
 ### 输出格式
 
-**pretty**（默认）——类 Rust 编译器的可读格式：
+**llm**（默认）——为 AI agent 优化的结构化 JSON；**pretty**——类 Rust 编译器的可读格式：
 
 ```
 error[MDM001]: unclosed inline math delimiter

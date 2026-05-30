@@ -36,7 +36,7 @@ describe("CLI", () => {
     const directory = mkdtempSync(join(tmpdir(), "mdmathlint-preview-"));
     const path = join(directory, "case.md");
     writeFileSync(path, "令$x$为变量。\n");
-    const output = execFileSync(process.execPath, [cli, path, "--fix-dry-run"], { encoding: "utf8" });
+    const output = execFileSync(process.execPath, [cli, path, "--fix-dry-run", "--format", "pretty"], { encoding: "utf8" });
     expect(output).toContain(`--- a/${path}`);
     expect(output).toContain(`+++ b/${path}`);
     expect(output).toContain("-令$x$为变量。");
@@ -79,7 +79,7 @@ describe("CLI", () => {
   });
 
   it("shows a source frame in pretty diagnostics", () => {
-    const output = execFileSync(process.execPath, [cli, "--stdin", "--profile", "strict", "--no-color"], {
+    const output = execFileSync(process.execPath, [cli, "--stdin", "--profile", "strict", "--no-color", "--format", "pretty"], {
       input: "令$x$为变量。\n",
       encoding: "utf8",
     });
@@ -89,11 +89,11 @@ describe("CLI", () => {
   });
 
   it("supports ANSI color controls and NO_COLOR", () => {
-    const colored = execFileSync(process.execPath, [cli, "--stdin", "--profile", "strict", "--color"], {
+    const colored = execFileSync(process.execPath, [cli, "--stdin", "--profile", "strict", "--color", "--format", "pretty"], {
       input: "令$x$为变量。\n",
       encoding: "utf8",
     });
-    const noColor = execFileSync(process.execPath, [cli, "--stdin", "--profile", "strict"], {
+    const noColor = execFileSync(process.execPath, [cli, "--stdin", "--profile", "strict", "--format", "pretty"], {
       input: "令$x$为变量。\n",
       encoding: "utf8",
       env: { ...process.env, NO_COLOR: "1" },
@@ -154,7 +154,7 @@ describe("CLI", () => {
     const directory = mkdtempSync(join(tmpdir(), "mdmathlint-watch-"));
     const path = join(directory, "watch.md");
     writeFileSync(path, "Good $x$.\n");
-    const child = spawn(process.execPath, [cli, path, "--watch", "--no-color"], {
+    const child = spawn(process.execPath, [cli, path, "--watch", "--no-color", "--format", "pretty"], {
       cwd: directory,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -231,13 +231,14 @@ describe("CLI", () => {
     expect(stdout).not.toContain("--- Original Markdown ---");
   });
 
-  it("rejects mutually exclusive --fix-prompt with --format llm", () => {
-    expect(() =>
-      execFileSync(process.execPath, [cli, "--stdin", "--fix-prompt", "--format", "llm"], {
-        input: "test\n",
-        encoding: "utf8",
-      }),
-    ).toThrow(expect.objectContaining({ status: 2 }));
+  it("--fix-prompt outputs plain text even with explicit --format llm", () => {
+    const stdout = execFileSync(process.execPath, [cli, "--stdin", "--fix-prompt", "--format", "llm"], {
+      input: "令$x$为变量。\n",
+      encoding: "utf8",
+    });
+    // fix-prompt takes priority over format; output is plain text, not JSON
+    expect(() => JSON.parse(stdout)).toThrow();
+    expect(stdout).toContain("Regenerate it with these fixes");
   });
 
   it("rejects mutually exclusive --fix-prompt with --fix", () => {

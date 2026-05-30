@@ -471,7 +471,7 @@ Options:
   --markdown-it-simulation <name>  texmath|dollarmath (default dollarmath)
   --config <path>               explicit config file path
   --no-config                   skip discovered configuration files
-  --format <format>             pretty (default) | json | sarif | llm
+  --format <format>             llm (default) | json | sarif | pretty
   --color / --no-color          force or disable ANSI color in pretty output
   --fix                         apply safe fixes (spacing, blank lines, delimiter placement)
   --fix-dry-run                 show a unified diff without writing files
@@ -509,7 +509,7 @@ mdmathlint "docs/**/*.md" --watch
 
 ### Output formats
 
-**pretty** (default) — Rust-style human-readable diagnostics:
+**llm** (default) — structured JSON optimized for AI agent consumption; **pretty** — Rust-style human-readable diagnostics:
 
 ```
 error[MDM001]: unclosed inline math delimiter
