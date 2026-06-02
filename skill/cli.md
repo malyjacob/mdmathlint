@@ -8,7 +8,11 @@ Use when MCP server is NOT available. All commands via shell.
 which mdmathlint || npx mdmathlint --version
 ```
 
-If neither works: `npm install -g mdmathlint` or prefix commands with `npx`.
+- `which mdmathlint` succeeds → globally installed, use `mdmathlint` directly
+- `npx mdmathlint --version` succeeds → not globally installed but `npx` can
+  fetch it; prefix all commands with `npx`
+- **Both fail → SKILL UNAVAILABLE.** mdmathlint is unreachable. Tell user:
+  `npm install -g mdmathlint` and retry. The skill cannot operate without it.
 
 ---
 

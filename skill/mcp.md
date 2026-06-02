@@ -2,6 +2,26 @@
 
 Use when `mdmathlint` MCP server is configured. All tools return structured JSON.
 
+## Prerequisites
+
+The MCP server must be registered. If `mdmathlint` doesn't appear in your
+available MCP tools, the user needs to add it to their MCP configuration:
+
+```jsonc
+{
+  "mcpServers": {
+    "mdmathlint": {
+      "command": "npx",
+      "args": ["-y", "mdmathlint-mcp"]
+    }
+  }
+}
+```
+
+Once registered and reconnected, the tools become available.
+
+---
+
 ## Tools at a Glance
 
 | Tool | Purpose | Use When |

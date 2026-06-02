@@ -6,15 +6,21 @@ All generated content containing `$...$`, `$$...$$`, `\(...\)`, or `\[...\]` mus
 
 ---
 
-## 🔴 Step 0 — Environment Detection
+## 🔴 Step 0 — Availability Check
 
-Determine your integration path BEFORE doing anything else:
+**mdmathlint must be reachable before you proceed.**
 
 ```
-Examine MCP configuration → is "mdmathlint" server registered?
-  ├─ YES → use MCP tools directly (read mcp.md)
-  └─ NO  → use CLI via shell (read cli.md)
+1. MCP server "mdmathlint" registered? → YES: use MCP (read mcp.md). Skip rest.
+2. CLI available?  which mdmathlint || npx mdmathlint --version
+   → OK: use CLI (read cli.md)
+   → FAIL: SKILL UNAVAILABLE. Tell user:
+           "mdmathlint is not installed. To enable this skill:
+            • npm install -g mdmathlint
+            • Or register MCP: npx mdmathlint-mcp"
 ```
+
+If neither path works, STOP. Do not continue with this skill.
 
 ---
 
