@@ -87,7 +87,6 @@ GitHub CodeQL / VS Code compatible. Use with `github/codeql-action/upload-sarif`
 LLM-optimized JSON:
 - `pass` / `summary` — quick pass/fail
 - `issues[]` — each with `severity`, `rule`, `line`, `column`, `message`, `help`, `why`, `snippet`, `examples[]`
-- `fix_prompt` — natural-language fix instructions ready to feed back to LLM
 
 ## Exit codes
 

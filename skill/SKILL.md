@@ -1,83 +1,143 @@
 # mdmathlint — Agent Skill
 
-A static analysis tool for math in Markdown. Catch formulas that **won't render** before you publish.
+Catch Markdown math formulas that **won't render** before returning content to the user.
 
-## When to use this tool
+All generated content containing `$...$`, `$$...$$`, `\(...\)`, or `\[...\]` must be linted.
 
-Invoke mdmathlint whenever you generate Markdown that contains mathematical formulas (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`). Common triggers:
+---
 
-- **LLM output validation** — you just generated a Markdown answer with math; lint it before returning to the user
-- **Documentation authoring** — writing READMEs, tech blogs, or project docs with equations
-- **CI quality gate** — checking math in a batch of Markdown files
-- **Cross-platform portability** — verifying formulas work on both GitHub and a custom static site
+## 🔴 Step 0 — Environment Detection
 
-## Integration methods
+Determine your integration path BEFORE doing anything else:
 
-Pick one based on your context:
+```
+Examine MCP configuration → is "mdmathlint" server registered?
+  ├─ YES → use MCP tools directly (read mcp.md)
+  └─ NO  → use CLI via shell (read cli.md)
+```
 
-| Method | Use when | Command / Code |
-|---|---|---|
-| **CLI pipe** | One-shot lint, stdin input | `echo "$text" \| mdmathlint --stdin --profile llm-output --format llm` |
-| **CLI fix-prompt** | Get fix instructions for LLM | `mdmathlint file.md --fix-prompt --profile llm-output` |
-| **Library API** | Programmatic use in Node.js | `import { lintText } from "mdmathlint"` |
-| **MCP Server** | Agent-native tool calling | Configure `mdmathlint-mcp` in MCP settings |
+---
 
-## Profile selection guide
+## 🔴 Step 1 — Read Project Configuration
 
-| Profile | Best for |
-|---|---|
-| `portable` | General purpose (default) |
-| `strict` | Maximum compatibility across platforms |
-| `github` | GitHub README / Issues / Wiki |
-| `llm-output` | AI-generated content quality gate |
-| `markdown-it` | markdown-it + texmath/dollarmath pipeline |
+**Search for `.mdmathlintrc.json` in the project root and parent directories.**
 
-For LLM output validation, **always use `llm-output`** — it elevates MDM015 (unrecognized delimiters) to error level.
+```
+Found?
+  ├─ YES → USER CONFIG IS THE SOURCE OF TRUTH.
+  │        Use its profile and rules as-is. The config represents the user's
+  │        deliberate choices — do NOT override with skill defaults.
+  │        If the config's profile is weaker than llm-output (e.g. github),
+  │        that's intentional — respect it silently.
+  │
+  │        Only override when you have a concrete, task-blocking reason:
+  │        → Explain what you want to change and WHY
+  │        → Get user confirmation BEFORE applying the override
+  │
+  └─ NO  → Fall back to profile="llm-output" (this skill's recommendation).
+```
 
-## Typical workflows
+Example: config says `"profile": "github"`. You normally prefer `llm-output`.
+→ Use `github`. Say nothing — the user chose it knowingly.
+→ Only if you detect an actual problem: "Your config uses github profile which
+  keeps MDM015 off. I'm seeing unrecognized delimiters that would be caught
+  under llm-output. Override for this session?"
 
-### Workflow 1: Self-check after generating Markdown
+---
+
+## 🔴 Step 2 — Post-Generation Lint Loop (PRIMARY WORKFLOW)
 
 ```
 1. Generate Markdown with math
-2. Run: lint_markdown(text, profile="llm-output")
-3. If pass=false:
-   a. Read issues[].examples for bad/good guidance
-   b. Fix the Markdown
-   c. Re-run lint
-4. (Optional) Run fix_markdown(text) to auto-correct spacing/blank lines
+2. Lint it
+3. pass=true  → return content to user ✓
+   pass=false → read issues[].examples (bad/good pairs)
+              → fix the Markdown
+              → re-lint (go to step 2)
 ```
 
-### Workflow 2: Pre-generation prevention
+### MCP path
 
 ```
-1. Run: list_rules(profile="llm-output")
-2. Note rules that apply (e.g., MDM005: add spaces around inline math)
-3. Generate Markdown with these rules in mind
-4. Run: lint_markdown(text) to verify
+lint_markdown(text, profile="llm-output")
+  → if pass: done
+  → if not: read issues[].examples[].bad / .good → fix → re-lint
+
+Optional shortcut: fix_markdown(text) for spacing/blank-line auto-fixes
+One-shot: lint_markdown(text, profile="llm-output", fix: true)
 ```
 
-### Workflow 3: Batch quality gate
+### CLI path
 
 ```bash
-mdmathlint "output/**/*.md" --profile llm-output --format llm --max-warnings 0
+echo "$text" | mdmathlint --stdin --profile llm-output
+  → exit 0: done
+  → exit 1: read bad/good examples → fix → re-lint
+
+Optional shortcut: mdmathlint file.md --fix --profile llm-output
 ```
 
-## Quick rule reference
+### Profile: prefer `llm-output`, respect config
 
-See [references/rules.md](references/rules.md) for the full 22-rule catalog. Most frequent issues:
+The `llm-output` profile is tuned for AI-generated content — elevates MDM015
+to error, MDM005 to warning, MDM013 to error. Use it UNLESS the project config
+specifies a different profile (see Step 1 — config is the source of truth).
 
-| Rule | Detects | Fix |
+---
+
+## 🔴 Step 3 — False Positive Protocol
+
+Some lint hits are **false positives** — content is correct but a rule fires anyway.
+Common triggers: MDM006 (currency `$5.00`), MDM007 (code examples with `$x$`).
+
+### High confidence → report + ask
+
+```
+1. Ignore or work around the specific issue
+2. Report to user in this format:
+   "lint flagged [RULE] on [SNIPPET], but I'm confident this is a false
+    positive because [REASON]. I've [ignored/worked around] it."
+3. Ask: "Should I file an issue so the maintainer can fix this?"
+```
+
+### Low confidence → treat as real
+
+If you can't articulate exactly why it's wrong, fix it normally. Don't invoke the protocol.
+
+> **Detailed protocol + issue template:** [references/false-positives.md](references/false-positives.md)
+
+---
+
+## 🟡 High-Frequency Rules (Top 5)
+
+Agents trigger these most often. Check these first when lint fails.
+
+| Rule | Symptom | Fix |
 |---|---|---|
-| MDM001/002 | Unclosed `$` / `$$` | Close the delimiter |
-| MDM003 | `$$` not on own line | Put `$$` on separate lines |
-| MDM005 | Math touching CJK/Latin text | Add spaces: `$x$` → ` $x$ ` |
-| MDM012 | KaTeX parse error | Correct the TeX syntax |
-| MDM015 | `$` not recognized as math | Reposition delimiters |
+| **MDM005** | Math touching text: `令$x$为` | Add spaces: `令 $x$ 为` |
+| **MDM015** | `$...$` exists but parser missed it | Add blank lines around display math, or spaces around inline |
+| **MDM012** | KaTeX parse error | Correct the TeX syntax |
+| **MDM024** | Unknown LaTeX command (likely hallucination) | Use a real command or `\newcommand` |
+| **MDM001** | Unclosed `$` — corrupts rest of doc | Find and close the missing `$` |
 
-## More details
+Full catalog: [references/rules.md](references/rules.md)
 
-- [rules.md](references/rules.md) — All 22 rules with examples
-- [cli.md](references/cli.md) — CLI options reference
-- [profiles.md](references/profiles.md) — Profile comparison matrix
-- [mcp.md](references/mcp.md) — MCP Server tool definitions
+---
+
+## 🟡 Sub-Skill Index
+
+| Path | Read when |
+|---|---|
+| [mcp.md](mcp.md) | MCP server is available — tool usage patterns |
+| [cli.md](cli.md) | CLI fallback — scenario-based commands |
+
+## ⚪ Reference Index
+
+| Path | Content |
+|---|---|
+| [references/rules.md](references/rules.md) | Complete 22-rule catalog |
+| [references/profiles.md](references/profiles.md) | Profile comparison matrix |
+| [references/mcp.md](references/mcp.md) | MCP tool reference (full signatures) |
+| [references/cli.md](references/cli.md) | CLI option reference (full flags) |
+| [references/config.md](references/config.md) | Configuration file reference + scenario templates |
+| [references/false-positives.md](references/false-positives.md) | False positive protocol + issue template |

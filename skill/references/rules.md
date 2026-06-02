@@ -65,12 +65,12 @@ Key differences from `portable`:
 | MDM005 | info | **warning** | info | **warning** | info |
 | MDM013 | warning | **error** | off | **error** | off |
 | MDM015 | off | **warning** | off | **error** | **warning** |
-| MDM022 | off | off | off | **warning** | off |
+| MDM022 | off | off | off | off | off |
 
 ## LLM-optimized rules
 
 Three rules added specifically for LLM output validation:
 
-- **MDM022** (`llm-output` → info): Suggests `\(...\)` / `\[...\]` — avoids `$5` ambiguity, no adjacency rules
+- **MDM022** (`llm-output` → off): Suggests `\(...\)` / `\[...\]` — avoids `$5` ambiguity, no adjacency rules
 - **MDM023** (all → warning): Mixed `$` and `\(` styles cause inconsistent recognition
 - **MDM024** (all → warning): Detects made-up LaTeX commands (`\differential`, `\vect`) via KaTeX validation

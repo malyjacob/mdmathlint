@@ -36,7 +36,6 @@ Matches GitHub's rendering pipeline.
 - MDM015: error (unrecognized delimiters MUST be fixed)
 - MDM013: error (no platform-specific syntax)
 - MDM005: warning (always space math from text)
-- MDM022: warning (strongly recommend bracket delimiters for robustness)
 
 ### `markdown-it`
 markdown-it + texmath/dollarmath plugin chain.
