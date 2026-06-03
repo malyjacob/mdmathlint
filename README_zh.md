@@ -650,7 +650,7 @@ mdmathlint answer.md --fix-prompt --profile llm-output
   "mcpServers": {
     "mdmathlint": {
       "command": "npx",
-      "args": ["-y", "mdmathlint-mcp"]
+      "args": ["-y", "--package", "mdmathlint", "mdmathlint-mcp"]
     }
   }
 }

@@ -7,7 +7,7 @@ import { reportLlm } from "./diagnostics/reporters.js";
 import { VERSION } from "./version.js";
 import { rpcError, rpcResponse, startRpcServer, type JsonRpcRequest } from "./transport/jsonRpcStdio.js";
 
-const PROTOCOL_VERSION = "2024-11-05";
+const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const SERVER_NAME = "mdmathlint";
 const SERVER_VERSION = VERSION;
 
@@ -211,10 +211,14 @@ async function handle(request: JsonRpcRequest): Promise<string[]> {
 
   // --- initialize ---
   if (method === "initialize") {
+    const clientVersion = (request.params as { protocolVersion?: string } | undefined)?.protocolVersion;
+    const negotiatedVersion = clientVersion && SUPPORTED_PROTOCOL_VERSIONS.includes(clientVersion)
+      ? clientVersion
+      : SUPPORTED_PROTOCOL_VERSIONS[0];
     return [rpcResponse(request.id, {
-      protocolVersion: PROTOCOL_VERSION,
+      protocolVersion: negotiatedVersion,
       capabilities: { tools: {} },
-      serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
+      serverInfo: { name: SERVER_NAME, title: SERVER_NAME, version: SERVER_VERSION },
     })];
   }
 

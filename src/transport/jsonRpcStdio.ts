@@ -6,9 +6,14 @@ export interface JsonRpcRequest {
   params?: unknown;
 }
 
+type RpcFraming = "content-length" | "newline";
+
+let responseFraming: RpcFraming = "content-length";
+
 /** Encode a JSON-RPC message with Content-Length header. */
 export function rpcMessage(payload: object): string {
   const body = JSON.stringify(payload);
+  if (responseFraming === "newline") return `${body}\n`;
   return `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
 }
 
@@ -56,17 +61,29 @@ export function startRpcServer(handler: (request: JsonRpcRequest) => Promise<str
   async function drain(): Promise<void> {
     for (;;) {
       const separator = input.indexOf("\r\n\r\n");
-      if (separator === -1) return;
-      const header = input.subarray(0, separator).toString("ascii");
-      const length = Number.parseInt(header.match(/Content-Length:\s*(\d+)/i)?.[1] ?? "", 10);
-      if (!Number.isInteger(length)) {
-        input = Buffer.alloc(0);
-        return;
+      let body: string | undefined;
+
+      if (separator !== -1) {
+        const header = input.subarray(0, separator).toString("ascii");
+        const length = Number.parseInt(header.match(/Content-Length:\s*(\d+)/i)?.[1] ?? "", 10);
+        if (!Number.isInteger(length)) {
+          input = Buffer.alloc(0);
+          return;
+        }
+        const bodyStart = separator + 4;
+        if (input.length < bodyStart + length) return;
+        body = input.subarray(bodyStart, bodyStart + length).toString("utf8");
+        input = input.subarray(bodyStart + length);
+        responseFraming = "content-length";
+      } else {
+        const newline = input.indexOf("\n");
+        if (newline === -1) return;
+        body = input.subarray(0, newline).toString("utf8").trim();
+        input = input.subarray(newline + 1);
+        if (!body) continue;
+        responseFraming = "newline";
       }
-      const bodyStart = separator + 4;
-      if (input.length < bodyStart + length) return;
-      const body = input.subarray(bodyStart, bodyStart + length).toString("utf8");
-      input = input.subarray(bodyStart + length);
+
       const outputs = await handler(JSON.parse(body) as JsonRpcRequest);
       outputs.forEach((output) => process.stdout.write(output));
     }

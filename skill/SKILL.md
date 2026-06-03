@@ -17,7 +17,7 @@ All generated content containing `$...$`, `$$...$$`, `\(...\)`, or `\[...\]` mus
    → FAIL: SKILL UNAVAILABLE. Tell user:
            "mdmathlint is not installed. To enable this skill:
             • npm install -g mdmathlint
-            • Or register MCP: npx mdmathlint-mcp"
+            • Or register MCP: npx --package mdmathlint mdmathlint-mcp"
 ```
 
 If neither path works, STOP. Do not continue with this skill.

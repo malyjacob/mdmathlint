@@ -648,7 +648,7 @@ Agent-native tool calling via the Model Context Protocol:
   "mcpServers": {
     "mdmathlint": {
       "command": "npx",
-      "args": ["-y", "mdmathlint-mcp"]
+      "args": ["-y", "--package", "mdmathlint", "mdmathlint-mcp"]
     }
   }
 }

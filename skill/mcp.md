@@ -12,7 +12,7 @@ available MCP tools, the user needs to add it to their MCP configuration:
   "mcpServers": {
     "mdmathlint": {
       "command": "npx",
-      "args": ["-y", "mdmathlint-mcp"]
+      "args": ["-y", "--package", "mdmathlint", "mdmathlint-mcp"]
     }
   }
 }

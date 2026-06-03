@@ -31,6 +31,19 @@ function run(messages: object[]): Array<Record<string, unknown>> {
   return payloads;
 }
 
+function runJsonLines(messages: object[]): Array<Record<string, unknown>> {
+  const result = spawnSync(process.execPath, [mcp], {
+    input: `${messages.map((payload) => JSON.stringify(payload)).join("\n")}\n`,
+    encoding: "utf8",
+  });
+  expect(result.status).toBe(0);
+  return result.stdout
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
 function contentText(payload: Record<string, unknown>): string {
   const content = (payload.result as { content: Array<{ text: string }> }).content;
   return content[0]?.text ?? "";
@@ -48,7 +61,7 @@ describe("MCP server", () => {
     expect(payloads[0].result).toMatchObject({
       protocolVersion: "2024-11-05",
       capabilities: { tools: {} },
-      serverInfo: { name: "mdmathlint", version: "1.1.2" },
+      serverInfo: { name: "mdmathlint", version: "1.1.3" },
     });
   });
 
@@ -71,6 +84,19 @@ describe("MCP server", () => {
     expect(names).toContain("fix_markdown");
     expect(names).toContain("explain_rule");
     expect(names).toContain("list_rules");
+  });
+
+  it("supports newline-delimited JSON-RPC framing", () => {
+    const payloads = runJsonLines([
+      { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1.0" } } },
+      { jsonrpc: "2.0", id: 2, method: "tools/list" },
+    ]);
+    expect(payloads[0].result).toMatchObject({
+      protocolVersion: "2025-06-18",
+      capabilities: { tools: {} },
+    });
+    const tools = (payloads[1].result as { tools: Array<{ name: string }> }).tools;
+    expect(tools.map((tool) => tool.name)).toContain("lint_markdown");
   });
 
   it("each tool has required inputSchema fields", () => {

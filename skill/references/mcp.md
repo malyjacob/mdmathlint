@@ -11,7 +11,7 @@ Add to your MCP client settings (Claude Desktop, Cursor, etc.):
   "mcpServers": {
     "mdmathlint": {
       "command": "npx",
-      "args": ["-y", "mdmathlint-mcp"]
+      "args": ["-y", "--package", "mdmathlint", "mdmathlint-mcp"]
     }
   }
 }
