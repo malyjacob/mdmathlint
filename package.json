@@ -17,12 +17,12 @@
     "access": "public"
   },
   "bin": {
-    "mdmathlint": "./dist/cli.js",
-    "mdml": "./dist/cli.js",
-    "mdmathlint-lsp": "./dist/lsp.js",
-    "mdml-lsp": "./dist/lsp.js",
-    "mdmathlint-mcp": "./dist/mcp.js",
-    "mdml-mcp": "./dist/mcp.js"
+    "mdmathlint": "dist/cli.js",
+    "mdml": "dist/cli.js",
+    "mdmathlint-lsp": "dist/lsp.js",
+    "mdml-lsp": "dist/lsp.js",
+    "mdmathlint-mcp": "dist/mcp.js",
+    "mdml-mcp": "dist/mcp.js"
   },
   "exports": {
     ".": {
