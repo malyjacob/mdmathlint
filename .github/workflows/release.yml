@@ -1,0 +1,176 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify tag and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - name: Verify tag matches package.json version
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match package.json version v${version}"
+            exit 1
+          fi
+          echo "tag ${GITHUB_REF_NAME} matches package.json v${version}"
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+
+  release:
+    name: Create GitHub Release
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Build release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          previous="$(git describe --tags --abbrev=0 "${tag}^" 2>/dev/null || true)"
+          if [ -n "${previous}" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+              -f tag_name="${tag}" \
+              -f previous_tag_name="${previous}" \
+              --jq .body > generated.md
+          else
+            gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+              -f tag_name="${tag}" \
+              --jq .body > generated.md
+          fi
+          # Drop GitHub's "New Contributors" section (noise for a single-maintainer
+          # repository) and its trailing Full Changelog line, which is re-added last.
+          awk '
+            /^## New Contributors/ { skip = 1; next }
+            skip && /^## /        { skip = 0 }
+            skip                  { next }
+            /^\*\*Full Changelog\*\*/ { next }
+            { print }
+          ' generated.md | sed -e '/./,$!d' > generated.filtered.md
+          package="$(jq -r .name package.json)"
+          version="$(jq -r .version package.json)"
+          {
+            cat generated.filtered.md
+            echo
+            echo "## Install"
+            echo
+            echo '```'
+            echo "npm install -g ${package}@${version}"
+            echo '```'
+            echo
+            echo "### Commits"
+            echo
+            if [ -n "${previous}" ]; then
+              git log --no-merges --pretty=format:'* %h %s' "${previous}..${tag}"
+            else
+              git log --no-merges --pretty=format:'* %h %s' "${tag}"
+            fi
+            echo
+            echo
+            if [ -n "${previous}" ]; then
+              echo "**Full Changelog**: https://github.com/${GITHUB_REPOSITORY}/compare/${previous}...${tag}"
+            else
+              echo "**Full Changelog**: https://github.com/${GITHUB_REPOSITORY}/commits/${tag}"
+            fi
+          } > release-notes.md
+          cat release-notes.md
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          case "${tag}" in
+            *-*) set -- --prerelease ;;
+            *) set -- ;;
+          esac
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            gh release edit "${tag}" --title "${tag}" --notes-file release-notes.md "$@"
+          else
+            gh release create "${tag}" --title "${tag}" --verify-tag --notes-file release-notes.md "$@"
+          fi
+
+  publish:
+    name: Publish to npm
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Decide whether to publish
+        id: gate
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          TRUSTED_PUBLISHER: ${{ vars.NPM_TRUSTED_PUBLISHER }}
+        run: |
+          set -euo pipefail
+          if [ -n "${NPM_TOKEN}" ]; then
+            echo "mode=token" >> "${GITHUB_OUTPUT}"
+          elif [ "${TRUSTED_PUBLISHER}" = "true" ]; then
+            echo "mode=oidc" >> "${GITHUB_OUTPUT}"
+          else
+            echo "mode=skip" >> "${GITHUB_OUTPUT}"
+            echo "::notice::Skipping npm publish. Set the NPM_TOKEN secret, or enable npm trusted publishing and set the NPM_TRUSTED_PUBLISHER repository variable to true."
+          fi
+      - uses: actions/checkout@v6
+        if: steps.gate.outputs.mode != 'skip'
+      - uses: actions/setup-node@v6
+        if: steps.gate.outputs.mode != 'skip'
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - name: Prepare trusted publishing
+        if: steps.gate.outputs.mode == 'oidc'
+        run: |
+          set -euo pipefail
+          npm install -g npm@latest
+          if [ -n "${NPM_CONFIG_USERCONFIG:-}" ] && [ -f "${NPM_CONFIG_USERCONFIG}" ]; then
+            sed -i '/_authToken/d' "${NPM_CONFIG_USERCONFIG}"
+          fi
+      - name: Check the registry for an existing version
+        id: check
+        if: steps.gate.outputs.mode != 'skip'
+        run: |
+          set -euo pipefail
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if npm view "${name}@${version}" version >/dev/null 2>&1; then
+            echo "published=true" >> "${GITHUB_OUTPUT}"
+            echo "::notice::${name}@${version} already exists on the registry; nothing to publish."
+          else
+            echo "published=false" >> "${GITHUB_OUTPUT}"
+          fi
+      - if: steps.gate.outputs.mode != 'skip' && steps.check.outputs.published == 'false'
+        run: npm ci
+      - if: steps.gate.outputs.mode != 'skip' && steps.check.outputs.published == 'false'
+        run: npm run build
+      - name: Publish
+        if: steps.gate.outputs.mode != 'skip' && steps.check.outputs.published == 'false'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
