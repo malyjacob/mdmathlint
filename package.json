@@ -4,6 +4,10 @@
   "description": "Profile-aware Markdown math linter",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/malyjacob/mdmathlint.git"
+  },
   "keywords": [
     "markdown",
     "math",
