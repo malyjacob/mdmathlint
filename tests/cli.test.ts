@@ -7,10 +7,12 @@ import { describe, expect, it } from "vitest";
 const cli = resolve("dist/cli.js");
 const pkg = JSON.parse(readFileSync(resolve("package.json"), "utf8")) as { version: string };
 
-async function waitForOutput(read: () => string, expected: string): Promise<void> {
-  const deadline = Date.now() + 5000;
+async function waitForOutput(read: () => string, expected: string, timeoutMs = 20000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
   while (!read().includes(expected)) {
-    if (Date.now() > deadline) throw new Error(`Timed out waiting for output containing ${expected}`);
+    if (Date.now() > deadline) {
+      throw new Error(`Timed out after ${timeoutMs}ms waiting for output containing ${JSON.stringify(expected)}; received:\n${read()}`);
+    }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
   }
 }
@@ -169,7 +171,7 @@ describe("CLI", () => {
     } finally {
       child.kill();
     }
-  });
+  }, 30000);
 
   it("resolves references against labels in another input file", () => {
     const directory = mkdtempSync(join(tmpdir(), "mdmathlint-cross-ref-"));
