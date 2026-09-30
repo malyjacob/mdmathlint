@@ -50,15 +50,39 @@ function isEscaped(text: string, offset: number): boolean {
   return slashes % 2 === 1;
 }
 
+/** Characters that identify the dollar as math when they directly follow the identifier. */
+const MATH_CONTINUATION = "$=+-*/^{}()[\\]><";
+/**
+ * The same signal, but with whitespace between the identifier and the operator.
+ * Parentheses and brackets are excluded: in prose they usually follow a shell
+ * variable (`$PATH (see below)`), while `=` or `\` after a space is math.
+ */
+const MATH_CONTINUATION_AFTER_SPACE = "$=+-*/^\\{}<>";
+
+function closesOnSameLine(text: string, from: number): boolean {
+  for (let index = from; index < text.length && text[index] !== "\n"; index += 1) {
+    if (text[index] === "$" && !isEscaped(text, index)) return true;
+  }
+  return false;
+}
+
 function isShellVariable(text: string, offset: number): boolean {
   const tail = text.slice(offset);
   if (/^\$\{[^}\n]+\}/.test(tail) || /^\$[#@?*!$-]/.test(tail)) return true;
   const variable = tail.match(/^\$([A-Za-z_][A-Za-z0-9_]*)/)?.[1];
   if (!variable) return false;
-  const next = text[offset + variable.length + 1];
-  if (/^[A-Z_][A-Z0-9_]*$/.test(variable)) {
-    return !next || !"$=+-*/^{}()[\\]><".includes(next);
+  const after = offset + variable.length + 1;
+  const next = text[after];
+  if (next && MATH_CONTINUATION.includes(next)) return false;
+  const spaced = text.slice(after).match(/^[ \t]+(.)/);
+  if (
+    spaced &&
+    MATH_CONTINUATION_AFTER_SPACE.includes(spaced[1]) &&
+    closesOnSameLine(text, after + spaced[0].length)
+  ) {
+    return false;
   }
+  if (/^[A-Z_][A-Z0-9_]*$/.test(variable)) return true;
   return variable.includes("_") && variable.length > 1;
 }
 
