@@ -96,6 +96,35 @@ describe("phase 2 profiles and context rules", () => {
   });
 });
 
+describe("dollar identifiers versus shell variables", () => {
+  it("reads underscore identifiers as inline math", async () => {
+    const issue = await lintText(
+      "其中 $g_t = \\nabla_\\theta \\mathcal{L}$ 是当前步的梯度，$\\eta$ 是学习率，$\\epsilon$ 是防除零的小常数。\n",
+    );
+    const subscripts = await lintText("Given $x_i$, $y_0$ and $x_{i,j} = 1$.\n");
+    const spacedOperator = await lintText("$g_t = 1$\n");
+    const uppercase = await lintText("$MY_VAR = 1$ holds.\n");
+    expect(issue.diagnostics).toEqual([]);
+    expect(subscripts.diagnostics).toEqual([]);
+    expect(spacedOperator.diagnostics).toEqual([]);
+    expect(uppercase.diagnostics).toEqual([]);
+  });
+
+  it("keeps the whole formula as pair content", () => {
+    const document = createDocument("其中 $g_t = \\nabla_\\theta \\mathcal{L}$ 是当前步的梯度。\n");
+    const scan = scanSource(document);
+    expect(scan.pairs.map((pair) => pair.content)).toEqual(["g_t = \\nabla_\\theta \\mathcal{L}"]);
+    expect(scan.unmatched).toEqual([]);
+  });
+
+  it("still filters identifiers that are not math", async () => {
+    const result = await lintText(
+      "Export $PATH, $HOME and $CI_PROJECT_DIR. Check $file_name, $api_key and $PACKAGE; and $PATH (see below).\n",
+    );
+    expect(result.diagnostics).toEqual([]);
+  });
+});
+
 describe("fix pipeline", () => {
   it("applies safe fixes and is idempotent", async () => {
     const original = "令$x$为变量。\n";
