@@ -108,7 +108,10 @@ jobs:
             *) set -- ;;
           esac
           if gh release view "${tag}" >/dev/null 2>&1; then
-            gh release edit "${tag}" --title "${tag}" --notes-file release-notes.md "$@"
+            # Deleting and re-pushing a tag turns its release into a draft, and
+            # gh release edit leaves a draft a draft, so ask for publication
+            # explicitly — otherwise the release silently stays invisible.
+            gh release edit "${tag}" --title "${tag}" --draft=false --notes-file release-notes.md "$@"
           else
             gh release create "${tag}" --title "${tag}" --verify-tag --notes-file release-notes.md "$@"
           fi
