@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const cli = resolve("dist/cli.js");
+const pkg = JSON.parse(readFileSync(resolve("package.json"), "utf8")) as { version: string };
 
 async function waitForOutput(read: () => string, expected: string): Promise<void> {
   const deadline = Date.now() + 5000;
@@ -20,7 +21,7 @@ describe("CLI", () => {
       input: "令$x$为数列。\n",
       encoding: "utf8",
     });
-    expect(stdout).toContain("\"version\": \"1.1.3\"");
+    expect(stdout).toContain(`"version": "${pkg.version}"`);
     expect(stdout).toContain("\"MDM005\"");
   });
 

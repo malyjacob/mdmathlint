@@ -1,8 +1,10 @@
-import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const mcp = resolve("dist/mcp.js");
+const pkg = JSON.parse(readFileSync(resolve("package.json"), "utf8")) as { version: string };
 
 function message(payload: object): string {
   const body = JSON.stringify(payload);
@@ -61,7 +63,7 @@ describe("MCP server", () => {
     expect(payloads[0].result).toMatchObject({
       protocolVersion: "2024-11-05",
       capabilities: { tools: {} },
-      serverInfo: { name: "mdmathlint", version: "1.1.3" },
+      serverInfo: { name: "mdmathlint", version: pkg.version },
     });
   });
 
